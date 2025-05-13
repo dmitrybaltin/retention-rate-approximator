@@ -4,4 +4,6 @@ Here is a tool for nonlinear approximation of the retention rate using a model c
 Run the first notebook's block, then run the second block and use the UI to fill in the settings.
 Finally, run the second block to start the learning process and display the results.
 
+You can find all the details in [my article](https://habr.com/ru/articles/732882/).
+
 Dmitry Baltin, 2023
