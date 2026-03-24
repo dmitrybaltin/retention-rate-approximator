@@ -1,8 +1,20 @@
+---
+title: Retention Rate Approximator
+sdk: gradio
+app_file: app.py
+---
+
 # Retention-rate-approximator
 
-Here is a tool for nonlinear approximation of the retention rate using a model containing 3 elements: the main trend function, offsets for patches and weekly seasonality.
-Run the first notebook's block, then run the second block and use the UI to fill in the settings.
-Finally, run the second block to start the learning process and display the results.
+This project approximates retention rate with three components: the main trend function, patch offsets, and weekly seasonality.
+
+The original notebook remains the source of truth for the research workflow. The repository now also contains a typed Python core and a `Gradio` app for Hugging Face Spaces in `app.py`.
+
+The Space expects CSV files with columns:
+- `date`
+- `installs`
+- `retention`
+- `retention_mean`
 
 You can find all the details in [my article](https://habr.com/ru/articles/732882/).
 
