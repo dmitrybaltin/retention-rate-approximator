@@ -268,15 +268,19 @@ def build_app() -> gr.Blocks:
             with gr.Row(equal_height=True):
                 with gr.Column(scale=4):
                     gr.Markdown('### Generator settings')
-                    demo_total_days = gr.Slider(label='Days', minimum=30, maximum=365, value=160, step=1)
-                    demo_first_day_of_week = gr.Slider(label='First day of week', minimum=0, maximum=6, value=2, step=1)
-                    demo_daily_installs_mean = gr.Slider(label='Mean installs', minimum=100, maximum=10000, value=1000, step=50)
-                    demo_daily_installs_sigma = gr.Slider(label='Install sigma', minimum=10, maximum=2000, value=200, step=10)
+                    with gr.Row():
+                        demo_total_days = gr.Slider(label='Days', minimum=30, maximum=365, value=160, step=1)
+                        demo_first_day_of_week = gr.Slider(label='First day of week', minimum=0, maximum=6, value=2, step=1)
+                    with gr.Row():
+                        demo_daily_installs_mean = gr.Slider(label='Mean installs', minimum=100, maximum=10000, value=1000, step=50)
+                        demo_daily_installs_sigma = gr.Slider(label='Install sigma', minimum=10, maximum=2000, value=200, step=10)
+                    with gr.Row():
+                        demo_main_function_type = gr.Dropdown(label='Main function', choices=main_function_choices, value=main_function_choices[4])
+                        demo_chain_function_type = gr.Dropdown(label='Patch function', choices=chain_function_choices, value=chain_function_choices[0])
+                    with gr.Row():
+                        demo_main_function_weights = gr.Textbox(label='Main function weights', value='0.5, 0.4, 0.05')
+                        demo_chain_function_weights = gr.Textbox(label='Patch weights', value='0.01, 0.02, 0.02, 0.03, 0.04')
                     demo_patches_dates = gr.Textbox(label='Patch dates', value='30, 60, 90, 120, 150')
-                    demo_main_function_type = gr.Dropdown(label='Main function', choices=main_function_choices, value=main_function_choices[4])
-                    demo_chain_function_type = gr.Dropdown(label='Patch function', choices=chain_function_choices, value=chain_function_choices[0])
-                    demo_main_function_weights = gr.Textbox(label='Main function weights', value='0.5, 0.4, 0.05')
-                    demo_chain_function_weights = gr.Textbox(label='Patch weights', value='0.01, 0.02, 0.02, 0.03, 0.04')
                     demo_week_function_weights = gr.Textbox(label='Week weights', value='1, 1, 1, 1, 1.05, 1.05, 0.9')
                     demo_button = gr.Button('Generate demo dataset', variant='primary')
                     demo_summary = gr.Markdown()
