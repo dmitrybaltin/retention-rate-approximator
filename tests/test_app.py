@@ -6,8 +6,10 @@ import pandas as pd
 
 from app import (
     _build_session_download_path,
+    clear_generated_source,
     confirm_generated_dataset_transfer,
     fit_uploaded_dataset,
+    on_csv_selected,
     request_generated_dataset_transfer,
     use_generated_dataset_in_fit,
 )
@@ -43,13 +45,14 @@ class AppTests(unittest.TestCase):
                 'retention_mean': [0.41, 0.36],
             }
         )
-        preview, status, _warning, _confirm, fit_has_data, fit_button, _csv_file, _show_csv, push_button, push_done_button = request_generated_dataset_transfer(frame, None, True)
+        preview, status, _warning, _confirm, fit_has_data, fit_button, _csv_file, _show_csv, push_button, push_done_button, clear_button = request_generated_dataset_transfer(frame, None, True)
         self.assertIsNotNone(preview)
         self.assertIn('overwrite', status)
         self.assertTrue(fit_has_data)
         self.assertTrue(fit_button['interactive'])
         self.assertNotIn('visible', push_button)
         self.assertNotIn('visible', push_done_button)
+        self.assertNotIn('visible', clear_button)
 
     def test_confirm_generated_dataset_transfer_overwrites_preview(self) -> None:
         frame = pd.DataFrame(
@@ -60,15 +63,54 @@ class AppTests(unittest.TestCase):
                 'retention_mean': [0.41, 0.36],
             }
         )
-        preview, status, _warning, _confirm, fit_has_data, fit_button, csv_file, show_csv, push_button, push_done_button = confirm_generated_dataset_transfer(frame)
+        preview, status, _warning, _confirm, fit_has_data, fit_button, csv_file, show_csv, push_button, push_done_button, clear_button = confirm_generated_dataset_transfer(frame)
         self.assertEqual(len(preview['value']), 2)
-        self.assertIn('Generated dataset from Demo is active', status)
+        self.assertIn('generated from Demo', status)
         self.assertTrue(fit_has_data)
         self.assertTrue(fit_button['interactive'])
         self.assertFalse(csv_file['visible'])
         self.assertTrue(show_csv['visible'])
         self.assertFalse(push_button['visible'])
         self.assertTrue(push_done_button['visible'])
+        self.assertTrue(clear_button['visible'])
+
+    def test_clear_generated_source_resets_fit_input(self) -> None:
+        status, fit_has_data, preview, fit_button, csv_file, show_csv, clear_button, generated_state = clear_generated_source()
+        self.assertIn('none', status)
+        self.assertFalse(fit_has_data)
+        self.assertFalse(preview['visible'])
+        self.assertFalse(fit_button['interactive'])
+        self.assertTrue(csv_file['visible'])
+        self.assertFalse(show_csv['visible'])
+        self.assertFalse(clear_button['visible'])
+        self.assertIsNone(generated_state)
+
+    def test_on_csv_selected_shows_preview(self) -> None:
+        csv_file = '.artifacts/test-session/upload.csv'
+        frame = pd.DataFrame(
+            {
+                'day_number': [0.0, 1.0],
+                'installs': [100.0, 120.0],
+                'retention': [0.4, 0.35],
+                'retention_mean': [0.41, 0.36],
+            }
+        )
+        frame.to_csv(csv_file, index=False)
+        try:
+            status, fit_has_data, preview, fit_button, csv_update, show_csv, clear_button, generated_state = on_csv_selected(csv_file)
+            self.assertIn('uploaded CSV', status)
+            self.assertTrue(fit_has_data)
+            self.assertTrue(preview['visible'])
+            self.assertEqual(len(preview['value']), 2)
+            self.assertTrue(fit_button['interactive'])
+            self.assertTrue(csv_update['visible'])
+            self.assertFalse(show_csv['visible'])
+            self.assertFalse(clear_button['visible'])
+            self.assertIsNone(generated_state)
+        finally:
+            import os
+            if os.path.exists(csv_file):
+                os.remove(csv_file)
 
     def test_fit_uploaded_dataset_accepts_generated_frame(self) -> None:
         frame = pd.DataFrame(
