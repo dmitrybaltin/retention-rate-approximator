@@ -357,11 +357,11 @@ def build_app() -> gr.Blocks:
                         bad_dates = gr.Textbox(label='Bad dates', value='', placeholder='12, 45')
                     week_function_weights = gr.Textbox(label='Week weights', value='1, 1, 1, 1, 1, 1, 1')
                 with gr.Column(scale=6, elem_classes='pane-column'):
-                    with gr.Row(elem_classes='pane-header'):
-                        gr.Markdown('### Fit results')
-                        predictions_download = gr.File(label='Predictions CSV')
+                    gr.Markdown('### Results')
                     fit_plot = gr.Plot(label='Fit plot')
                     fit_table = gr.Dataframe(label='Predictions', interactive=False)
+                    predictions_download = gr.File(label='Download results CSV')
+                    gr.Markdown('### Run summary')
                     fit_summary = gr.Markdown(elem_classes='pane-summary')
 
             csv_file.change(
