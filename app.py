@@ -48,8 +48,10 @@ def _resolve_training_strategy(mode: str) -> list[TrainingPhase]:
 
 
 def _build_dataset_download_path(name: str) -> Path:
-    safe_name = ''.join(char if char.isalnum() or char in '-_' else '_' for char in name)
-    return ARTIFACTS_DIR / safe_name
+    source = Path(name)
+    safe_stem = ''.join(char if char.isalnum() or char in '-_' else '_' for char in source.stem)
+    suffix = source.suffix or '.csv'
+    return ARTIFACTS_DIR / f'{safe_stem}{suffix}'
 
 
 def generate_demo_dataset(
@@ -158,7 +160,7 @@ def build_app() -> gr.Blocks:
             # Retention Rate Approximator
 
             Upload retention CSV data or generate a demo dataset, then fit the original notebook model through a simpler web UI.
-            Expected CSV columns: `date`, `installs`, `retention`, `retention_mean`.
+            Expected CSV columns: `date` or `day_number`, `installs`, `retention`, `retention_mean`.
             """
         )
 
