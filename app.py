@@ -503,7 +503,7 @@ def build_app() -> gr.Blocks:
                 ],
                 outputs=[generated_state, demo_plot, demo_summary, demo_download_button, generated_table, session_id_state],
             ).then(
-                fn=lambda: (gr.update(visible=True), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)),
+                fn=lambda: (gr.update(visible=True), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(value='Done', visible=False)),
                 inputs=None,
                 outputs=[demo_download_button, send_to_fit_button, overwrite_warning, confirm_overwrite_button, push_status],
             )
