@@ -6,7 +6,7 @@ from typing import Final
 import gradio as gr
 import pandas as pd
 
-from retention_rate_approximator.data import load_retention_csv, save_retention_csv
+from retention_rate_approximator.data import load_retention_csv, load_retention_frame, save_retention_csv
 from retention_rate_approximator.modeling import ApproximatorsFactory
 from retention_rate_approximator.plotting import (
     FitPlotData,
@@ -54,18 +54,7 @@ def _build_dataset_download_path(name: str) -> Path:
     return ARTIFACTS_DIR / f'{safe_stem}{suffix}'
 
 
-def generate_demo_dataset(
-    total_days: int,
-    first_day_of_week: int,
-    patches_dates: str,
-    main_function_type: str,
-    chain_function_type: str,
-    main_function_weights: str,
-    chain_function_weights: str,
-    week_function_weights: str,
-    daily_installs_mean: int,
-    daily_installs_sigma: int,
-) -> tuple[str, object, str]:
+def _create_generated_frame(total_days: int, first_day_of_week: int, patches_dates: str, main_function_type: str, chain_function_type: str, main_function_weights: str, chain_function_weights: str, week_function_weights: str, daily_installs_mean: int, daily_installs_sigma: int) -> tuple[pd.DataFrame, object, str, str]:
     patch_values = _parse_int_list(patches_dates)
     main_weight_values = _parse_float_list(main_function_weights)
     chain_weight_values = _parse_float_list(chain_function_weights)
@@ -90,6 +79,14 @@ def generate_demo_dataset(
         retention=generated.retention,
         retention_mean=generated.retention_trend,
     )
+    frame = pd.DataFrame(
+        {
+            'day_number': generated.day_numbers.detach().cpu().numpy(),
+            'installs': generated.installs.detach().cpu().numpy(),
+            'retention': generated.retention.detach().cpu().numpy(),
+            'retention_mean': generated.retention_trend.detach().cpu().numpy(),
+        }
+    )
     figure = plot_synthetic_dataset(generated)
     details = (
         '### Demo dataset generated\n'
@@ -97,11 +94,44 @@ def generate_demo_dataset(
         f"- Patch dates: {', '.join(str(value) for value in generated.patches_dates) or 'none'}\n"
         f'- Anomaly days: {len(generated.bad_days)}'
     )
-    return str(output_path), figure, details
+    return frame, figure, details, str(output_path)
+
+
+def generate_demo_dataset(
+    total_days: int,
+    first_day_of_week: int,
+    patches_dates: str,
+    main_function_type: str,
+    chain_function_type: str,
+    main_function_weights: str,
+    chain_function_weights: str,
+    week_function_weights: str,
+    daily_installs_mean: int,
+    daily_installs_sigma: int,
+) -> tuple[pd.DataFrame, object, str, str]:
+    return _create_generated_frame(
+        total_days,
+        first_day_of_week,
+        patches_dates,
+        main_function_type,
+        chain_function_type,
+        main_function_weights,
+        chain_function_weights,
+        week_function_weights,
+        daily_installs_mean,
+        daily_installs_sigma,
+    )
+
+
+def use_generated_dataset_in_fit(generated_frame: pd.DataFrame | None) -> tuple[pd.DataFrame, str]:
+    if generated_frame is None or generated_frame.empty:
+        raise gr.Error('Generate a demo dataset first.')
+    return generated_frame, 'Generated dataset is ready for fitting. Go to the Fit CSV tab and click Fit model.'
 
 
 def fit_uploaded_dataset(
     csv_file: str | None,
+    generated_frame: pd.DataFrame | None,
     first_day_of_week: int,
     main_function_type: str,
     chain_function_type: str,
@@ -112,10 +142,15 @@ def fit_uploaded_dataset(
     training_mode: str,
     exclude_patch_dates: bool,
 ) -> tuple[object, pd.DataFrame, str, str]:
-    if csv_file is None:
-        raise gr.Error('Upload a CSV file first.')
+    if csv_file is not None:
+        dataset = load_retention_csv(csv_file)
+        source_label = 'uploaded CSV'
+    elif generated_frame is not None and not generated_frame.empty:
+        dataset = load_retention_frame(generated_frame)
+        source_label = 'generated dataset'
+    else:
+        raise gr.Error('Upload a CSV file or send a generated dataset to the approximator first.')
 
-    dataset = load_retention_csv(csv_file)
     patch_values = _parse_int_list(patches_dates)
     bad_date_values = _parse_int_list(bad_dates)
     week_weight_values = _parse_float_list(week_function_weights) if week_function_weights.strip() else None
@@ -143,7 +178,7 @@ def fit_uploaded_dataset(
         )
     )
     frame = build_prediction_frame(dataset.day_numbers, dataset.retention, result.predicted, result.predicted_trend)
-    summary = build_training_summary(result)
+    summary = f'Source: {source_label}\n\n' + build_training_summary(result)
     output_path = _build_dataset_download_path('fit_predictions.csv')
     frame.to_csv(output_path, index=False)
     return figure, frame, summary, str(output_path)
@@ -155,6 +190,8 @@ def build_app() -> gr.Blocks:
     connector_choices = [connector[0] for connector in ApproximatorsFactory.connectors]
 
     with gr.Blocks(title='Retention Rate Approximator') as app:
+        generated_state = gr.State(value=None)
+
         gr.Markdown(
             """
             # Retention Rate Approximator
@@ -165,9 +202,11 @@ def build_app() -> gr.Blocks:
         )
 
         with gr.Tab('Fit CSV'):
+            fit_source_status = gr.Markdown('Source: upload a CSV or send a generated dataset from the demo tab.')
             with gr.Row():
                 csv_file = gr.File(label='Retention CSV', file_types=['.csv'], type='filepath')
                 predictions_download = gr.File(label='Predictions CSV')
+            generated_preview = gr.Dataframe(label='Generated dataset passed from demo tab', interactive=False, visible=False)
             with gr.Row():
                 first_day_of_week = gr.Slider(label='First day of week', minimum=0, maximum=6, value=0, step=1)
                 training_mode = gr.Radio(label='Training preset', choices=['Fast', 'Standard'], value='Standard')
@@ -189,6 +228,7 @@ def build_app() -> gr.Blocks:
                 fn=fit_uploaded_dataset,
                 inputs=[
                     csv_file,
+                    generated_state,
                     first_day_of_week,
                     main_function_type,
                     chain_function_type,
@@ -220,6 +260,7 @@ def build_app() -> gr.Blocks:
                 demo_chain_function_weights = gr.Textbox(label='Patch weights', value='0.01, 0.02, 0.02, 0.03, 0.04')
                 demo_week_function_weights = gr.Textbox(label='Week weights', value='1, 1, 1, 1, 1.05, 1.05, 0.9')
             demo_button = gr.Button('Generate demo dataset')
+            send_to_fit_button = gr.Button('Use generated dataset in approximator')
             demo_summary = gr.Markdown()
 
             demo_button.click(
@@ -236,7 +277,17 @@ def build_app() -> gr.Blocks:
                     demo_daily_installs_mean,
                     demo_daily_installs_sigma,
                 ],
-                outputs=[demo_download, demo_plot, demo_summary],
+                outputs=[generated_state, demo_plot, demo_summary, demo_download],
+            )
+
+            send_to_fit_button.click(
+                fn=use_generated_dataset_in_fit,
+                inputs=[generated_state],
+                outputs=[generated_preview, fit_source_status],
+            ).then(
+                fn=lambda: gr.update(visible=True),
+                inputs=None,
+                outputs=[generated_preview],
             )
 
     return app

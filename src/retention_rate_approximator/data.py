@@ -21,28 +21,33 @@ class RetentionDataset:
 
 def load_retention_csv(path: str | Path) -> RetentionDataset:
     frame = pd.read_csv(path)
+    return load_retention_frame(frame)
 
-    if 'date' in frame.columns and not pd.api.types.is_numeric_dtype(frame['date']):
-        frame['date'] = pd.to_datetime(frame['date'])
-        dates_list = frame['date'].tolist()
+
+def load_retention_frame(frame: pd.DataFrame) -> RetentionDataset:
+    normalized_frame = frame.copy()
+
+    if 'date' in normalized_frame.columns and not pd.api.types.is_numeric_dtype(normalized_frame['date']):
+        normalized_frame['date'] = pd.to_datetime(normalized_frame['date'])
+        dates_list = normalized_frame['date'].tolist()
         first_date = min(dates_list)
         day_numbers_series = pd.Series([(current_date - first_date).days for current_date in dates_list], name='day_number')
-    elif 'day_number' in frame.columns:
-        day_numbers_series = pd.to_numeric(frame['day_number'], errors='raise')
+    elif 'day_number' in normalized_frame.columns:
+        day_numbers_series = pd.to_numeric(normalized_frame['day_number'], errors='raise')
         first_date = datetime(1970, 1, 1)
-    elif 'date' in frame.columns:
-        day_numbers_series = pd.to_numeric(frame['date'], errors='raise')
+    elif 'date' in normalized_frame.columns:
+        day_numbers_series = pd.to_numeric(normalized_frame['date'], errors='raise')
         first_date = datetime(1970, 1, 1)
     else:
         raise ValueError("CSV must contain either 'date' or 'day_number' column.")
 
     return RetentionDataset(
         day_numbers=torch.clamp(torch.tensor(day_numbers_series.values), 0, 100_000_000_000_000).float(),
-        installs=torch.clamp(torch.tensor(frame['installs'].values), 1, 10_000_000_000),
-        retention=torch.clamp(torch.tensor(frame['retention'].values), 0, 1),
-        retention_mean=torch.clamp(torch.tensor(frame['retention_mean'].values), 0, 1),
+        installs=torch.clamp(torch.tensor(normalized_frame['installs'].values), 1, 10_000_000_000),
+        retention=torch.clamp(torch.tensor(normalized_frame['retention'].values), 0, 1),
+        retention_mean=torch.clamp(torch.tensor(normalized_frame['retention_mean'].values), 0, 1),
         first_date=first_date,
-        frame=frame,
+        frame=normalized_frame,
     )
 
 
