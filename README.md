@@ -8,9 +8,9 @@ app_file: app.py
 
 This project approximates retention rate with three components: the main trend function, patch offsets, and weekly seasonality.
 
-The original notebook remains the source of truth for the research workflow. The repository now also contains a typed Python core and a `Gradio` app for Hugging Face Spaces in `app.py`.
+The repository contains a typed Python core and a `Gradio` app for Hugging Face Spaces in `app.py`.
 
-The Hugging Face Space is intended as the easiest way to try the model without opening the notebook locally.
+The Hugging Face Space is intended as the easiest way to try the model.
 
 The Space expects CSV files with columns:
 - `date`
