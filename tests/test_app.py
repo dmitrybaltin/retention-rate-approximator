@@ -16,8 +16,13 @@ from app import (
 class AppTests(unittest.TestCase):
     def test_download_path_preserves_csv_extension(self) -> None:
         path = _build_dataset_download_path('demo_dataset.csv')
-        self.assertEqual(path.name, 'demo_dataset.csv')
+        self.assertTrue(path.name.startswith('demo_dataset-'))
         self.assertEqual(path.suffix, '.csv')
+
+    def test_download_paths_are_unique(self) -> None:
+        first_path = _build_dataset_download_path('demo_dataset.csv')
+        second_path = _build_dataset_download_path('demo_dataset.csv')
+        self.assertNotEqual(first_path, second_path)
 
     def test_use_generated_dataset_returns_frame_and_status(self) -> None:
         frame = pd.DataFrame(
