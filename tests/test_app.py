@@ -44,8 +44,7 @@ class AppTests(unittest.TestCase):
                 'retention_mean': [0.41, 0.36],
             }
         )
-        preview, status, _warning, _confirm, fit_has_data, fit_button, _csv_file, _show_csv = request_generated_dataset_transfer(frame, None, True)
-        self.assertIsNotNone(preview)
+        status, _warning, _confirm, fit_has_data, fit_button, _csv_file, _show_csv = request_generated_dataset_transfer(frame, None, True)
         self.assertIn('overwrite', status)
         self.assertTrue(fit_has_data)
         self.assertTrue(fit_button['interactive'])
@@ -59,8 +58,7 @@ class AppTests(unittest.TestCase):
                 'retention_mean': [0.41, 0.36],
             }
         )
-        preview, status, _warning, _confirm, fit_has_data, fit_button, csv_file, show_csv = confirm_generated_dataset_transfer(frame)
-        self.assertEqual(len(preview), 2)
+        status, _warning, _confirm, fit_has_data, fit_button, csv_file, show_csv = confirm_generated_dataset_transfer(frame)
         self.assertIn('Generated dataset from Demo is active', status)
         self.assertTrue(fit_has_data)
         self.assertTrue(fit_button['interactive'])

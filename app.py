@@ -235,13 +235,12 @@ def request_generated_dataset_transfer(
     generated_frame: pd.DataFrame | None,
     csv_file: str | None,
     fit_has_data: bool,
-) -> tuple[object, str, object, object, bool, object, object, object]:
+) -> tuple[str, object, object, bool, object, object, object]:
     if generated_frame is None or generated_frame.empty:
         raise gr.Error('Generate a demo dataset first.')
     if _fit_source_present(csv_file, None, fit_has_data):
         warning = 'Approximator already has data. Pushing the generated dataset will overwrite it. Click confirm to continue.'
         return (
-            gr.update(),
             warning,
             gr.update(visible=True),
             gr.update(visible=False),
@@ -251,7 +250,6 @@ def request_generated_dataset_transfer(
             gr.update(),
         )
     return (
-        generated_frame,
         _build_source_status(
             'Generated dataset from Demo is ready',
             f'Rows available: {len(generated_frame)}. Click Fit to run the approximator.',
@@ -265,11 +263,10 @@ def request_generated_dataset_transfer(
     )
 
 
-def confirm_generated_dataset_transfer(generated_frame: pd.DataFrame | None) -> tuple[object, str, object, object, bool, object, object, object]:
+def confirm_generated_dataset_transfer(generated_frame: pd.DataFrame | None) -> tuple[str, object, object, bool, object, object, object]:
     if generated_frame is None or generated_frame.empty:
         raise gr.Error('Generate a demo dataset first.')
     return (
-        generated_frame,
         _build_source_status(
             'Generated dataset from Demo is active',
             f'Rows available: {len(generated_frame)}. Previous fit input was replaced.',
@@ -514,7 +511,7 @@ def build_app() -> gr.Blocks:
             send_to_fit_button.click(
                 fn=request_generated_dataset_transfer,
                 inputs=[generated_state, csv_file, fit_has_data_state],
-                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button],
+                outputs=[fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button],
             ).then(
                 fn=show_generated_preview,
                 inputs=[generated_state],
@@ -524,7 +521,7 @@ def build_app() -> gr.Blocks:
             confirm_overwrite_button.click(
                 fn=confirm_generated_dataset_transfer,
                 inputs=[generated_state],
-                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button],
+                outputs=[fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button],
             ).then(
                 fn=show_generated_preview,
                 inputs=[generated_state],
