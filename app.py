@@ -68,30 +68,6 @@ CUSTOM_CSS: Final[str] = """
   margin-top: 0.25rem;
 }
 """
-TOOLTIP_JS: Final[str] = """
-() => {
-  const applyTooltips = () => {
-    const tooltipMap = {
-      'demo-download-button': 'Download the generated dataset as a CSV file.',
-      'demo-push-button': 'Send the generated dataset directly to the approximator without using a file.',
-    };
-    Object.entries(tooltipMap).forEach(([id, title]) => {
-      const root = document.getElementById(id);
-      if (!root) return;
-      root.title = title;
-      const button = root.querySelector('button');
-      if (button) {
-        button.title = title;
-      }
-    });
-  };
-  applyTooltips();
-  const observer = new MutationObserver(applyTooltips);
-  observer.observe(document.body, { childList: true, subtree: true });
-}
-"""
-
-
 def _parse_int_list(raw_value: str) -> list[int]:
     if not raw_value.strip():
         return []
@@ -467,7 +443,6 @@ app = build_app()
 if __name__ == '__main__':
     app.launch(
         css=CUSTOM_CSS,
-        js=TOOLTIP_JS,
         server_name='0.0.0.0',
         server_port=int(os.environ.get('PORT', '7860')),
         ssr_mode=False,
