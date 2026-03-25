@@ -43,6 +43,10 @@ CUSTOM_CSS: Final[str] = """
   align-items: start;
   margin-bottom: 0.25rem;
 }
+#demo-pane .pane-actions {
+  align-items: center;
+  gap: 0.5rem;
+}
 #fit-pane .pane-header .gr-markdown,
 #demo-pane .pane-header .gr-markdown {
   margin: 0;
@@ -68,6 +72,12 @@ CUSTOM_CSS: Final[str] = """
 #fit-pane .pane-summary,
 #demo-pane .pane-summary {
   margin-top: 0.25rem;
+}
+#demo-push-done {
+  margin: 0;
+  color: #1f5c2e;
+  font-weight: 600;
+  min-width: 3rem;
 }
 """
 
@@ -478,9 +488,10 @@ def build_app() -> gr.Blocks:
                 with gr.Column(scale=6, elem_classes='pane-column'):
                     with gr.Row(elem_classes='pane-header'):
                         gr.Markdown('### Generated dataset')
-                        demo_download_button = gr.DownloadButton('Download', elem_id='demo-download-button', visible=False, size='sm')
-                        send_to_fit_button = gr.Button('Puch to approximator', elem_id='demo-push-button', visible=False, size='sm')
-                        push_status = gr.Markdown(value='Done', visible=False)
+                        with gr.Row(elem_classes='pane-actions'):
+                            demo_download_button = gr.DownloadButton('Download', elem_id='demo-download-button', visible=False, size='sm')
+                            send_to_fit_button = gr.Button('Puch to approximator', elem_id='demo-push-button', visible=False, size='sm')
+                            push_status = gr.Markdown(value='Done', visible=False, elem_id='demo-push-done')
                     demo_plot = gr.Plot(label='Synthetic dataset')
                     generated_table = gr.Dataframe(label='Generated data', interactive=False)
                     overwrite_warning = gr.Markdown(visible=False)
