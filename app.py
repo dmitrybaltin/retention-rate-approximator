@@ -20,8 +20,6 @@ from retention_rate_approximator.training import TrainingPhase, train_retention_
 
 ARTIFACTS_DIR: Final[Path] = Path('.artifacts')
 ARTIFACTS_DIR.mkdir(exist_ok=True)
-DOWNLOAD_ICON_PATH: Final[str] = str(Path('assets') / 'download.svg')
-UPLOAD_ICON_PATH: Final[str] = str(Path('assets') / 'upload.svg')
 CUSTOM_CSS: Final[str] = """
 #demo-pane .gr-block {
   min-height: 0;
@@ -190,10 +188,58 @@ def generate_demo_dataset(
     return frame, figure, details, output_path, frame
 
 
+def _fit_source_present(csv_file: str | None, generated_frame: pd.DataFrame | None, fit_has_data: bool) -> bool:
+    return fit_has_data or csv_file is not None or (generated_frame is not None and not generated_frame.empty)
+
+
+
+
 def use_generated_dataset_in_fit(generated_frame: pd.DataFrame | None) -> tuple[pd.DataFrame, str]:
     if generated_frame is None or generated_frame.empty:
         raise gr.Error('Generate a demo dataset first.')
     return generated_frame, 'Generated dataset is ready for fitting. Go to the Fit CSV tab and click Fit model.'
+
+def request_generated_dataset_transfer(
+    generated_frame: pd.DataFrame | None,
+    csv_file: str | None,
+    fit_has_data: bool,
+) -> tuple[object, str, object, object, bool]:
+    if generated_frame is None or generated_frame.empty:
+        raise gr.Error('Generate a demo dataset first.')
+    if _fit_source_present(csv_file, None, fit_has_data):
+        warning = 'Approximator already has data. Pushing the generated dataset will overwrite it. Click confirm to continue.'
+        return (
+            gr.update(),
+            warning,
+            gr.update(visible=True),
+            gr.update(visible=False),
+            fit_has_data,
+        )
+    return (
+        generated_frame,
+        'Generated dataset is ready for fitting. Go to the Fit CSV tab and click Fit model.',
+        gr.update(visible=False),
+        gr.update(visible=True),
+        True,
+    )
+
+
+def confirm_generated_dataset_transfer(generated_frame: pd.DataFrame | None) -> tuple[pd.DataFrame, str, object, object, bool]:
+    if generated_frame is None or generated_frame.empty:
+        raise gr.Error('Generate a demo dataset first.')
+    return (
+        generated_frame,
+        'Generated dataset replaced the previous approximator input. Go to the Fit CSV tab and click Fit model.',
+        gr.update(visible=False),
+        gr.update(visible=True),
+        True,
+    )
+
+
+def on_csv_selected(csv_file: str | None) -> tuple[str, bool, gr.update]:
+    if csv_file is None:
+        return 'Source: upload a CSV or send a generated dataset from the demo tab.', False, gr.update(visible=False)
+    return 'Source: uploaded CSV selected. Click Fit model to use it.', True, gr.update(visible=False)
 
 
 def fit_uploaded_dataset(
@@ -208,7 +254,7 @@ def fit_uploaded_dataset(
     week_function_weights: str,
     training_mode: str,
     exclude_patch_dates: bool,
-) -> tuple[object, pd.DataFrame, str, str]:
+) -> tuple[object, pd.DataFrame, str, str, bool]:
     if csv_file is not None:
         dataset = load_retention_csv(csv_file)
         source_label = 'uploaded CSV'
@@ -248,7 +294,7 @@ def fit_uploaded_dataset(
     summary = f'Source: {source_label}\n\n' + build_training_summary(result)
     output_path = _build_dataset_download_path('fit_predictions.csv')
     frame.to_csv(output_path, index=False)
-    return figure, frame, summary, str(output_path)
+    return figure, frame, summary, str(output_path), True
 
 
 def build_app() -> gr.Blocks:
@@ -258,6 +304,7 @@ def build_app() -> gr.Blocks:
 
     with gr.Blocks(title='Retention Rate Approximator', css=CUSTOM_CSS, js=TOOLTIP_JS) as app:
         generated_state = gr.State(value=None)
+        fit_has_data_state = gr.State(value=False)
 
         gr.Markdown(
             """
@@ -291,6 +338,12 @@ def build_app() -> gr.Blocks:
             fit_table = gr.Dataframe(label='Predictions', interactive=False)
             fit_summary = gr.Markdown()
 
+            csv_file.change(
+                fn=on_csv_selected,
+                inputs=[csv_file],
+                outputs=[fit_source_status, fit_has_data_state, generated_preview],
+            )
+
             fit_button.click(
                 fn=fit_uploaded_dataset,
                 inputs=[
@@ -306,7 +359,7 @@ def build_app() -> gr.Blocks:
                     training_mode,
                     exclude_patch_dates,
                 ],
-                outputs=[fit_plot, fit_table, fit_summary, predictions_download],
+                outputs=[fit_plot, fit_table, fit_summary, predictions_download, fit_has_data_state],
             )
 
         with gr.Tab('Generate demo'):
@@ -334,10 +387,12 @@ def build_app() -> gr.Blocks:
                 with gr.Column(scale=6, elem_classes='demo-column'):
                     with gr.Row(elem_classes='demo-header'):
                         gr.Markdown('### Generated dataset')
-                        demo_download_button = gr.DownloadButton('Download', icon=DOWNLOAD_ICON_PATH, elem_id='demo-download-button', visible=False, size='sm')
-                        send_to_fit_button = gr.Button('Push', icon=UPLOAD_ICON_PATH, elem_id='demo-push-button', visible=False, size='sm')
+                        demo_download_button = gr.DownloadButton('Download', elem_id='demo-download-button', visible=False, size='sm')
+                        send_to_fit_button = gr.Button('Puch to approximator', elem_id='demo-push-button', visible=False, size='sm')
                     demo_plot = gr.Plot(label='Synthetic dataset')
                     generated_table = gr.Dataframe(label='Generated data', interactive=False)
+                    overwrite_warning = gr.Markdown(visible=False)
+                    confirm_overwrite_button = gr.Button('Confirm overwrite', variant='secondary', size='sm', visible=False)
 
             demo_button.click(
                 fn=generate_demo_dataset,
@@ -355,15 +410,25 @@ def build_app() -> gr.Blocks:
                 ],
                 outputs=[generated_state, demo_plot, demo_summary, demo_download_button, generated_table],
             ).then(
-                fn=lambda: (gr.update(visible=True), gr.update(visible=True)),
+                fn=lambda: (gr.update(visible=True), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False)),
                 inputs=None,
-                outputs=[demo_download_button, send_to_fit_button],
+                outputs=[demo_download_button, send_to_fit_button, overwrite_warning, confirm_overwrite_button],
             )
 
             send_to_fit_button.click(
-                fn=use_generated_dataset_in_fit,
+                fn=request_generated_dataset_transfer,
+                inputs=[generated_state, csv_file, fit_has_data_state],
+                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state],
+            ).then(
+                fn=lambda frame: gr.update(visible=frame is not None),
+                inputs=[generated_preview],
+                outputs=[generated_preview],
+            )
+
+            confirm_overwrite_button.click(
+                fn=confirm_generated_dataset_transfer,
                 inputs=[generated_state],
-                outputs=[generated_preview, fit_source_status],
+                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state],
             ).then(
                 fn=lambda: gr.update(visible=True),
                 inputs=None,
