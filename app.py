@@ -20,6 +20,8 @@ from retention_rate_approximator.training import TrainingPhase, train_retention_
 
 ARTIFACTS_DIR: Final[Path] = Path('.artifacts')
 ARTIFACTS_DIR.mkdir(exist_ok=True)
+DOWNLOAD_ICON_PATH: Final[str] = str(Path('assets') / 'download.svg')
+UPLOAD_ICON_PATH: Final[str] = str(Path('assets') / 'upload.svg')
 TOOLTIP_JS: Final[str] = """
 () => {
   const applyTooltips = () => {
@@ -76,7 +78,18 @@ def _build_dataset_download_path(name: str) -> Path:
     return ARTIFACTS_DIR / f'{safe_stem}{suffix}'
 
 
-def _create_generated_frame(total_days: int, first_day_of_week: int, patches_dates: str, main_function_type: str, chain_function_type: str, main_function_weights: str, chain_function_weights: str, week_function_weights: str, daily_installs_mean: int, daily_installs_sigma: int) -> tuple[pd.DataFrame, object, str, str]:
+def _create_generated_frame(
+    total_days: int,
+    first_day_of_week: int,
+    patches_dates: str,
+    main_function_type: str,
+    chain_function_type: str,
+    main_function_weights: str,
+    chain_function_weights: str,
+    week_function_weights: str,
+    daily_installs_mean: int,
+    daily_installs_sigma: int,
+) -> tuple[pd.DataFrame, object, str, str]:
     patch_values = _parse_int_list(patches_dates)
     main_weight_values = _parse_float_list(main_function_weights)
     chain_weight_values = _parse_float_list(chain_function_weights)
@@ -130,8 +143,8 @@ def generate_demo_dataset(
     week_function_weights: str,
     daily_installs_mean: int,
     daily_installs_sigma: int,
-) -> tuple[pd.DataFrame, object, str, str]:
-    return _create_generated_frame(
+) -> tuple[pd.DataFrame, object, str, str, pd.DataFrame]:
+    frame, figure, details, output_path = _create_generated_frame(
         total_days,
         first_day_of_week,
         patches_dates,
@@ -143,6 +156,7 @@ def generate_demo_dataset(
         daily_installs_mean,
         daily_installs_sigma,
     )
+    return frame, figure, details, output_path, frame
 
 
 def use_generated_dataset_in_fit(generated_frame: pd.DataFrame | None) -> tuple[pd.DataFrame, str]:
@@ -267,7 +281,9 @@ def build_app() -> gr.Blocks:
         with gr.Tab('Generate demo'):
             with gr.Row(equal_height=True):
                 with gr.Column(scale=4):
-                    gr.Markdown('### Generator settings')
+                    with gr.Row():
+                        gr.Markdown('### Fill settings and Generate')
+                        demo_button = gr.Button('Generate', variant='primary', size='sm')
                     with gr.Row():
                         demo_total_days = gr.Slider(label='Days', minimum=30, maximum=365, value=160, step=1)
                         demo_first_day_of_week = gr.Slider(label='First day of week', minimum=0, maximum=6, value=2, step=1)
@@ -283,14 +299,14 @@ def build_app() -> gr.Blocks:
                     with gr.Row():
                         demo_patches_dates = gr.Textbox(label='Patch dates', value='30, 60, 90, 120, 150')
                         demo_week_function_weights = gr.Textbox(label='Week weights', value='1, 1, 1, 1, 1.05, 1.05, 0.9')
-                    demo_button = gr.Button('Generate demo dataset', variant='primary')
                     demo_summary = gr.Markdown()
                 with gr.Column(scale=6):
-                    gr.Markdown('### Generated dataset')
-                    demo_plot = gr.Plot(label='Synthetic dataset')
                     with gr.Row():
-                        demo_download_button = gr.DownloadButton('Download CSV', icon='download', elem_id='demo-download-button', visible=False)
-                        send_to_fit_button = gr.Button('Push to approximator', icon='upload', elem_id='demo-push-button', visible=False)
+                        gr.Markdown('### Generated dataset')
+                        demo_download_button = gr.DownloadButton('Download', icon=DOWNLOAD_ICON_PATH, elem_id='demo-download-button', visible=False, size='sm')
+                        send_to_fit_button = gr.Button('Push', icon=UPLOAD_ICON_PATH, elem_id='demo-push-button', visible=False, size='sm')
+                    demo_plot = gr.Plot(label='Synthetic dataset')
+                    generated_table = gr.Dataframe(label='Generated data', interactive=False)
 
             demo_button.click(
                 fn=generate_demo_dataset,
@@ -306,7 +322,7 @@ def build_app() -> gr.Blocks:
                     demo_daily_installs_mean,
                     demo_daily_installs_sigma,
                 ],
-                outputs=[generated_state, demo_plot, demo_summary, demo_download_button],
+                outputs=[generated_state, demo_plot, demo_summary, demo_download_button, generated_table],
             ).then(
                 fn=lambda: (gr.update(visible=True), gr.update(visible=True)),
                 inputs=None,
