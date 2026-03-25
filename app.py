@@ -280,8 +280,9 @@ def build_app() -> gr.Blocks:
                     with gr.Row():
                         demo_main_function_weights = gr.Textbox(label='Main function weights', value='0.5, 0.4, 0.05')
                         demo_chain_function_weights = gr.Textbox(label='Patch weights', value='0.01, 0.02, 0.02, 0.03, 0.04')
-                    demo_patches_dates = gr.Textbox(label='Patch dates', value='30, 60, 90, 120, 150')
-                    demo_week_function_weights = gr.Textbox(label='Week weights', value='1, 1, 1, 1, 1.05, 1.05, 0.9')
+                    with gr.Row():
+                        demo_patches_dates = gr.Textbox(label='Patch dates', value='30, 60, 90, 120, 150')
+                        demo_week_function_weights = gr.Textbox(label='Week weights', value='1, 1, 1, 1, 1.05, 1.05, 0.9')
                     demo_button = gr.Button('Generate demo dataset', variant='primary')
                     demo_summary = gr.Markdown()
                 with gr.Column(scale=6):
