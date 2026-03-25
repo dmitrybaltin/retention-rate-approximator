@@ -43,10 +43,6 @@ CUSTOM_CSS: Final[str] = """
   align-items: start;
   margin-bottom: 0.25rem;
 }
-#demo-pane .pane-actions {
-  align-items: center;
-  gap: 0.5rem;
-}
 #fit-pane .pane-header .gr-markdown,
 #demo-pane .pane-header .gr-markdown {
   margin: 0;
@@ -72,12 +68,6 @@ CUSTOM_CSS: Final[str] = """
 #fit-pane .pane-summary,
 #demo-pane .pane-summary {
   margin-top: 0.25rem;
-}
-#demo-push-done {
-  margin: 0;
-  color: #1f5c2e;
-  font-weight: 600;
-  min-width: 3rem;
 }
 """
 
@@ -273,7 +263,7 @@ def request_generated_dataset_transfer(
         gr.update(interactive=True),
         gr.update(visible=False),
         gr.update(visible=True),
-        gr.update(value='Done', visible=True),
+        gr.update(value='Puch OK', visible=True, interactive=False),
     )
 
 
@@ -292,7 +282,7 @@ def confirm_generated_dataset_transfer(generated_frame: pd.DataFrame | None) -> 
         gr.update(interactive=True),
         gr.update(visible=False),
         gr.update(visible=True),
-        gr.update(value='Done', visible=True),
+        gr.update(value='Puch OK', visible=True, interactive=False),
     )
 
 
@@ -488,10 +478,8 @@ def build_app() -> gr.Blocks:
                 with gr.Column(scale=6, elem_classes='pane-column'):
                     with gr.Row(elem_classes='pane-header'):
                         gr.Markdown('### Generated dataset')
-                        with gr.Row(elem_classes='pane-actions'):
-                            demo_download_button = gr.DownloadButton('Download', elem_id='demo-download-button', visible=False, size='sm')
-                            send_to_fit_button = gr.Button('Puch to approximator', elem_id='demo-push-button', visible=False, size='sm')
-                            push_status = gr.Markdown(value='Done', visible=False, elem_id='demo-push-done')
+                        demo_download_button = gr.DownloadButton('Download', elem_id='demo-download-button', visible=False, size='sm')
+                        send_to_fit_button = gr.Button('Puch to approximator', elem_id='demo-push-button', visible=False, size='sm')
                     demo_plot = gr.Plot(label='Synthetic dataset')
                     generated_table = gr.Dataframe(label='Generated data', interactive=False)
                     overwrite_warning = gr.Markdown(visible=False)
@@ -514,21 +502,26 @@ def build_app() -> gr.Blocks:
                 ],
                 outputs=[generated_state, demo_plot, demo_summary, demo_download_button, generated_table, session_id_state],
             ).then(
-                fn=lambda: (gr.update(visible=True), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(value='Done', visible=False)),
+                fn=lambda: (
+                    gr.update(visible=True),
+                    gr.update(value='Puch to approximator', visible=True, interactive=True),
+                    gr.update(visible=False),
+                    gr.update(visible=False),
+                ),
                 inputs=None,
-                outputs=[demo_download_button, send_to_fit_button, overwrite_warning, confirm_overwrite_button, push_status],
+                outputs=[demo_download_button, send_to_fit_button, overwrite_warning, confirm_overwrite_button],
             )
 
             send_to_fit_button.click(
                 fn=request_generated_dataset_transfer,
                 inputs=[generated_state, csv_file, fit_has_data_state],
-                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button, push_status],
+                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button, send_to_fit_button],
             )
 
             confirm_overwrite_button.click(
                 fn=confirm_generated_dataset_transfer,
                 inputs=[generated_state],
-                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button, push_status],
+                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button, send_to_fit_button],
             )
 
     return app
