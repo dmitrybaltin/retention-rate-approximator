@@ -45,13 +45,12 @@ class AppTests(unittest.TestCase):
                 'retention_mean': [0.41, 0.36],
             }
         )
-        preview, status, _warning, _confirm, fit_has_data, fit_button, _csv_file, _show_csv, push_button, push_done_button, clear_button = request_generated_dataset_transfer(frame, None, True)
+        preview, status, _warning, _confirm, fit_has_data, fit_button, _csv_file, _show_csv, push_button, clear_button = request_generated_dataset_transfer(frame, None, True)
         self.assertIsNotNone(preview)
         self.assertIn('overwrite', status)
         self.assertTrue(fit_has_data)
         self.assertTrue(fit_button['interactive'])
         self.assertNotIn('visible', push_button)
-        self.assertNotIn('visible', push_done_button)
         self.assertNotIn('visible', clear_button)
 
     def test_confirm_generated_dataset_transfer_overwrites_preview(self) -> None:
@@ -63,15 +62,14 @@ class AppTests(unittest.TestCase):
                 'retention_mean': [0.41, 0.36],
             }
         )
-        preview, status, _warning, _confirm, fit_has_data, fit_button, csv_file, show_csv, push_button, push_done_button, clear_button = confirm_generated_dataset_transfer(frame)
+        preview, status, _warning, _confirm, fit_has_data, fit_button, csv_file, show_csv, push_button, clear_button = confirm_generated_dataset_transfer(frame)
         self.assertEqual(len(preview['value']), 2)
         self.assertIn('generated from Demo', status)
         self.assertTrue(fit_has_data)
         self.assertTrue(fit_button['interactive'])
         self.assertFalse(csv_file['visible'])
         self.assertTrue(show_csv['visible'])
-        self.assertFalse(push_button['visible'])
-        self.assertTrue(push_done_button['visible'])
+        self.assertTrue(push_button['visible'])
         self.assertTrue(clear_button['visible'])
 
     def test_clear_generated_source_resets_fit_input(self) -> None:
