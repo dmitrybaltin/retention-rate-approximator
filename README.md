@@ -10,6 +10,8 @@ This project approximates retention rate with three components: the main trend f
 
 The original notebook remains the source of truth for the research workflow. The repository now also contains a typed Python core and a `Gradio` app for Hugging Face Spaces in `app.py`.
 
+The Hugging Face Space is intended as the easiest way to try the model without opening the notebook locally.
+
 The Space expects CSV files with columns:
 - `date`
 - `installs`
