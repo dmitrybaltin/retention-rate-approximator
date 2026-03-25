@@ -21,33 +21,43 @@ from retention_rate_approximator.training import TrainingPhase, train_retention_
 ARTIFACTS_DIR: Final[Path] = Path('.artifacts')
 ARTIFACTS_DIR.mkdir(exist_ok=True)
 CUSTOM_CSS: Final[str] = """
+#fit-pane .gr-block,
 #demo-pane .gr-block {
   min-height: 0;
 }
-#demo-pane .demo-column {
+#fit-pane .pane-column,
+#demo-pane .pane-column {
   gap: 0.6rem;
 }
-#demo-pane .demo-header {
+#fit-pane .pane-header,
+#demo-pane .pane-header {
   align-items: start;
   margin-bottom: 0.25rem;
 }
-#demo-pane .demo-header .gr-markdown {
+#fit-pane .pane-header .gr-markdown,
+#demo-pane .pane-header .gr-markdown {
   margin: 0;
 }
-#demo-pane .demo-header .gr-button,
-#demo-pane .demo-header .gr-downloadbutton {
+#fit-pane .pane-header .gr-button,
+#fit-pane .pane-header .gr-downloadbutton,
+#demo-pane .pane-header .gr-button,
+#demo-pane .pane-header .gr-downloadbutton {
   margin-top: 0;
 }
-#demo-pane .demo-grid-row {
+#fit-pane .pane-grid-row,
+#demo-pane .pane-grid-row {
   gap: 0.75rem;
   margin-top: 0;
   margin-bottom: 0;
 }
-#demo-pane .demo-grid-row .gr-block,
-#demo-pane .demo-column .gr-block {
+#fit-pane .pane-grid-row .gr-block,
+#fit-pane .pane-column .gr-block,
+#demo-pane .pane-grid-row .gr-block,
+#demo-pane .pane-column .gr-block {
   margin-top: 0;
 }
-#demo-pane .demo-summary {
+#fit-pane .pane-summary,
+#demo-pane .pane-summary {
   margin-top: 0.25rem;
 }
 """
@@ -192,12 +202,11 @@ def _fit_source_present(csv_file: str | None, generated_frame: pd.DataFrame | No
     return fit_has_data or csv_file is not None or (generated_frame is not None and not generated_frame.empty)
 
 
-
-
 def use_generated_dataset_in_fit(generated_frame: pd.DataFrame | None) -> tuple[pd.DataFrame, str]:
     if generated_frame is None or generated_frame.empty:
         raise gr.Error('Generate a demo dataset first.')
     return generated_frame, 'Generated dataset is ready for fitting. Go to the Fit CSV tab and click Fit model.'
+
 
 def request_generated_dataset_transfer(
     generated_frame: pd.DataFrame | None,
@@ -316,27 +325,34 @@ def build_app() -> gr.Blocks:
         )
 
         with gr.Tab('Fit CSV'):
-            fit_source_status = gr.Markdown('Source: upload a CSV or send a generated dataset from the demo tab.')
-            with gr.Row():
-                csv_file = gr.File(label='Retention CSV', file_types=['.csv'], type='filepath')
-                predictions_download = gr.File(label='Predictions CSV')
-            generated_preview = gr.Dataframe(label='Generated dataset passed from demo tab', interactive=False, visible=False)
-            with gr.Row():
-                first_day_of_week = gr.Slider(label='First day of week', minimum=0, maximum=6, value=0, step=1)
-                training_mode = gr.Radio(label='Training preset', choices=['Fast', 'Standard'], value='Standard')
-                exclude_patch_dates = gr.Checkbox(label='Exclude patch dates from training', value=True)
-            with gr.Row():
-                main_function_type = gr.Dropdown(label='Main function', choices=main_function_choices, value=main_function_choices[4])
-                chain_function_type = gr.Dropdown(label='Patch function', choices=chain_function_choices, value=chain_function_choices[0])
-                connector_type = gr.Dropdown(label='Connector', choices=connector_choices, value=connector_choices[0])
-            with gr.Row():
-                patches_dates = gr.Textbox(label='Patch dates', value='', placeholder='30, 60, 90')
-                bad_dates = gr.Textbox(label='Bad dates', value='', placeholder='12, 45')
-                week_function_weights = gr.Textbox(label='Week weights', value='1, 1, 1, 1, 1, 1, 1')
-            fit_button = gr.Button('Fit model', variant='primary')
-            fit_plot = gr.Plot(label='Fit plot')
-            fit_table = gr.Dataframe(label='Predictions', interactive=False)
-            fit_summary = gr.Markdown()
+            with gr.Row(elem_id='fit-pane'):
+                with gr.Column(scale=4, elem_classes='pane-column'):
+                    with gr.Row(elem_classes='pane-header'):
+                        gr.Markdown('### Configure and Fit')
+                        fit_button = gr.Button('Fit', variant='primary', size='sm')
+                    fit_source_status = gr.Markdown('Source: upload a CSV or send a generated dataset from the demo tab.', elem_classes='pane-summary')
+                    csv_file = gr.File(label='Retention CSV', file_types=['.csv'], type='filepath')
+                    generated_preview = gr.Dataframe(label='Generated dataset passed from demo tab', interactive=False, visible=False)
+                    with gr.Row(elem_classes='pane-grid-row'):
+                        first_day_of_week = gr.Slider(label='First day of week', minimum=0, maximum=6, value=0, step=1)
+                        training_mode = gr.Radio(label='Training preset', choices=['Fast', 'Standard'], value='Standard')
+                    with gr.Row(elem_classes='pane-grid-row'):
+                        main_function_type = gr.Dropdown(label='Main function', choices=main_function_choices, value=main_function_choices[4])
+                        chain_function_type = gr.Dropdown(label='Patch function', choices=chain_function_choices, value=chain_function_choices[0])
+                    with gr.Row(elem_classes='pane-grid-row'):
+                        connector_type = gr.Dropdown(label='Connector', choices=connector_choices, value=connector_choices[0])
+                        exclude_patch_dates = gr.Checkbox(label='Exclude patch dates from training', value=True)
+                    with gr.Row(elem_classes='pane-grid-row'):
+                        patches_dates = gr.Textbox(label='Patch dates', value='', placeholder='30, 60, 90')
+                        bad_dates = gr.Textbox(label='Bad dates', value='', placeholder='12, 45')
+                    week_function_weights = gr.Textbox(label='Week weights', value='1, 1, 1, 1, 1, 1, 1')
+                with gr.Column(scale=6, elem_classes='pane-column'):
+                    with gr.Row(elem_classes='pane-header'):
+                        gr.Markdown('### Fit results')
+                        predictions_download = gr.File(label='Predictions CSV')
+                    fit_plot = gr.Plot(label='Fit plot')
+                    fit_table = gr.Dataframe(label='Predictions', interactive=False)
+                    fit_summary = gr.Markdown(elem_classes='pane-summary')
 
             csv_file.change(
                 fn=on_csv_selected,
@@ -364,28 +380,28 @@ def build_app() -> gr.Blocks:
 
         with gr.Tab('Generate demo'):
             with gr.Row(elem_id='demo-pane'):
-                with gr.Column(scale=4, elem_classes='demo-column'):
-                    with gr.Row(elem_classes='demo-header'):
+                with gr.Column(scale=4, elem_classes='pane-column'):
+                    with gr.Row(elem_classes='pane-header'):
                         gr.Markdown('### Fill settings and Generate')
                         demo_button = gr.Button('Generate', variant='primary', size='sm')
-                    with gr.Row(elem_classes='demo-grid-row'):
+                    with gr.Row(elem_classes='pane-grid-row'):
                         demo_total_days = gr.Slider(label='Days', minimum=30, maximum=365, value=160, step=1)
                         demo_first_day_of_week = gr.Slider(label='First day of week', minimum=0, maximum=6, value=2, step=1)
-                    with gr.Row(elem_classes='demo-grid-row'):
+                    with gr.Row(elem_classes='pane-grid-row'):
                         demo_daily_installs_mean = gr.Slider(label='Mean installs', minimum=100, maximum=10000, value=1000, step=50)
                         demo_daily_installs_sigma = gr.Slider(label='Install sigma', minimum=10, maximum=2000, value=200, step=10)
-                    with gr.Row(elem_classes='demo-grid-row'):
+                    with gr.Row(elem_classes='pane-grid-row'):
                         demo_main_function_type = gr.Dropdown(label='Main function', choices=main_function_choices, value=main_function_choices[4])
                         demo_chain_function_type = gr.Dropdown(label='Patch function', choices=chain_function_choices, value=chain_function_choices[0])
-                    with gr.Row(elem_classes='demo-grid-row'):
+                    with gr.Row(elem_classes='pane-grid-row'):
                         demo_main_function_weights = gr.Textbox(label='Main function weights', value='0.5, 0.4, 0.05')
                         demo_chain_function_weights = gr.Textbox(label='Patch weights', value='0.01, 0.02, 0.02, 0.03, 0.04')
-                    with gr.Row(elem_classes='demo-grid-row'):
+                    with gr.Row(elem_classes='pane-grid-row'):
                         demo_patches_dates = gr.Textbox(label='Patch dates', value='30, 60, 90, 120, 150')
                         demo_week_function_weights = gr.Textbox(label='Week weights', value='1, 1, 1, 1, 1.05, 1.05, 0.9')
-                    demo_summary = gr.Markdown(elem_classes='demo-summary')
-                with gr.Column(scale=6, elem_classes='demo-column'):
-                    with gr.Row(elem_classes='demo-header'):
+                    demo_summary = gr.Markdown(elem_classes='pane-summary')
+                with gr.Column(scale=6, elem_classes='pane-column'):
+                    with gr.Row(elem_classes='pane-header'):
                         gr.Markdown('### Generated dataset')
                         demo_download_button = gr.DownloadButton('Download', elem_id='demo-download-button', visible=False, size='sm')
                         send_to_fit_button = gr.Button('Puch to approximator', elem_id='demo-push-button', visible=False, size='sm')
