@@ -22,6 +22,37 @@ ARTIFACTS_DIR: Final[Path] = Path('.artifacts')
 ARTIFACTS_DIR.mkdir(exist_ok=True)
 DOWNLOAD_ICON_PATH: Final[str] = str(Path('assets') / 'download.svg')
 UPLOAD_ICON_PATH: Final[str] = str(Path('assets') / 'upload.svg')
+CUSTOM_CSS: Final[str] = """
+#demo-pane .gr-block {
+  min-height: 0;
+}
+#demo-pane .demo-column {
+  gap: 0.6rem;
+}
+#demo-pane .demo-header {
+  align-items: start;
+  margin-bottom: 0.25rem;
+}
+#demo-pane .demo-header .gr-markdown {
+  margin: 0;
+}
+#demo-pane .demo-header .gr-button,
+#demo-pane .demo-header .gr-downloadbutton {
+  margin-top: 0;
+}
+#demo-pane .demo-grid-row {
+  gap: 0.75rem;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+#demo-pane .demo-grid-row .gr-block,
+#demo-pane .demo-column .gr-block {
+  margin-top: 0;
+}
+#demo-pane .demo-summary {
+  margin-top: 0.25rem;
+}
+"""
 TOOLTIP_JS: Final[str] = """
 () => {
   const applyTooltips = () => {
@@ -225,7 +256,7 @@ def build_app() -> gr.Blocks:
     chain_function_choices = [spec.name for spec in ApproximatorsFactory.chain_functions]
     connector_choices = [connector[0] for connector in ApproximatorsFactory.connectors]
 
-    with gr.Blocks(title='Retention Rate Approximator', js=TOOLTIP_JS) as app:
+    with gr.Blocks(title='Retention Rate Approximator', css=CUSTOM_CSS, js=TOOLTIP_JS) as app:
         generated_state = gr.State(value=None)
 
         gr.Markdown(
@@ -279,29 +310,29 @@ def build_app() -> gr.Blocks:
             )
 
         with gr.Tab('Generate demo'):
-            with gr.Row(equal_height=True):
-                with gr.Column(scale=4):
-                    with gr.Row():
+            with gr.Row(elem_id='demo-pane'):
+                with gr.Column(scale=4, elem_classes='demo-column'):
+                    with gr.Row(elem_classes='demo-header'):
                         gr.Markdown('### Fill settings and Generate')
                         demo_button = gr.Button('Generate', variant='primary', size='sm')
-                    with gr.Row():
+                    with gr.Row(elem_classes='demo-grid-row'):
                         demo_total_days = gr.Slider(label='Days', minimum=30, maximum=365, value=160, step=1)
                         demo_first_day_of_week = gr.Slider(label='First day of week', minimum=0, maximum=6, value=2, step=1)
-                    with gr.Row():
+                    with gr.Row(elem_classes='demo-grid-row'):
                         demo_daily_installs_mean = gr.Slider(label='Mean installs', minimum=100, maximum=10000, value=1000, step=50)
                         demo_daily_installs_sigma = gr.Slider(label='Install sigma', minimum=10, maximum=2000, value=200, step=10)
-                    with gr.Row():
+                    with gr.Row(elem_classes='demo-grid-row'):
                         demo_main_function_type = gr.Dropdown(label='Main function', choices=main_function_choices, value=main_function_choices[4])
                         demo_chain_function_type = gr.Dropdown(label='Patch function', choices=chain_function_choices, value=chain_function_choices[0])
-                    with gr.Row():
+                    with gr.Row(elem_classes='demo-grid-row'):
                         demo_main_function_weights = gr.Textbox(label='Main function weights', value='0.5, 0.4, 0.05')
                         demo_chain_function_weights = gr.Textbox(label='Patch weights', value='0.01, 0.02, 0.02, 0.03, 0.04')
-                    with gr.Row():
+                    with gr.Row(elem_classes='demo-grid-row'):
                         demo_patches_dates = gr.Textbox(label='Patch dates', value='30, 60, 90, 120, 150')
                         demo_week_function_weights = gr.Textbox(label='Week weights', value='1, 1, 1, 1, 1.05, 1.05, 0.9')
-                    demo_summary = gr.Markdown()
-                with gr.Column(scale=6):
-                    with gr.Row():
+                    demo_summary = gr.Markdown(elem_classes='demo-summary')
+                with gr.Column(scale=6, elem_classes='demo-column'):
+                    with gr.Row(elem_classes='demo-header'):
                         gr.Markdown('### Generated dataset')
                         demo_download_button = gr.DownloadButton('Download', icon=DOWNLOAD_ICON_PATH, elem_id='demo-download-button', visible=False, size='sm')
                         send_to_fit_button = gr.Button('Push', icon=UPLOAD_ICON_PATH, elem_id='demo-push-button', visible=False, size='sm')
