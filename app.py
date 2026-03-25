@@ -69,14 +69,6 @@ CUSTOM_CSS: Final[str] = """
 #demo-pane .pane-summary {
   margin-top: 0.25rem;
 }
-#demo-push-status {
-  background: #e7f6ec;
-  border: 1px solid #9ed0ab;
-  border-radius: 8px;
-  color: #1f5c2e;
-  padding: 0.35rem 0.6rem;
-  font-size: 0.92rem;
-}
 """
 
 
@@ -233,10 +225,6 @@ def _build_source_status(title: str, detail: str) -> str:
     return f'### Data source status\n**{title}**\n\n{detail}'
 
 
-def _build_banner(message: str) -> str:
-    return f'**{message}**'
-
-
 def use_generated_dataset_in_fit(generated_frame: pd.DataFrame | None) -> tuple[pd.DataFrame, str]:
     if generated_frame is None or generated_frame.empty:
         raise gr.Error('Generate a demo dataset first.')
@@ -275,7 +263,7 @@ def request_generated_dataset_transfer(
         gr.update(interactive=True),
         gr.update(visible=False),
         gr.update(visible=True),
-        gr.update(value=_build_banner('Added to approximator.'), visible=True),
+        gr.update(value='Done', visible=True),
     )
 
 
@@ -294,7 +282,7 @@ def confirm_generated_dataset_transfer(generated_frame: pd.DataFrame | None) -> 
         gr.update(interactive=True),
         gr.update(visible=False),
         gr.update(visible=True),
-        gr.update(value=_build_banner('Approximator input replaced.'), visible=True),
+        gr.update(value='Done', visible=True),
     )
 
 
@@ -492,7 +480,7 @@ def build_app() -> gr.Blocks:
                         gr.Markdown('### Generated dataset')
                         demo_download_button = gr.DownloadButton('Download', elem_id='demo-download-button', visible=False, size='sm')
                         send_to_fit_button = gr.Button('Puch to approximator', elem_id='demo-push-button', visible=False, size='sm')
-                    push_status = gr.Markdown(value='', visible=False, elem_id='demo-push-status')
+                        push_status = gr.Markdown(value='Done', visible=False)
                     demo_plot = gr.Plot(label='Synthetic dataset')
                     generated_table = gr.Dataframe(label='Generated data', interactive=False)
                     overwrite_warning = gr.Markdown(visible=False)
@@ -515,7 +503,7 @@ def build_app() -> gr.Blocks:
                 ],
                 outputs=[generated_state, demo_plot, demo_summary, demo_download_button, generated_table, session_id_state],
             ).then(
-                fn=lambda: (gr.update(visible=True), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(value='', visible=False)),
+                fn=lambda: (gr.update(visible=True), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)),
                 inputs=None,
                 outputs=[demo_download_button, send_to_fit_button, overwrite_warning, confirm_overwrite_button, push_status],
             )

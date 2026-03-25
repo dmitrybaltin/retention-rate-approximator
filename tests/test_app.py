@@ -66,7 +66,7 @@ class AppTests(unittest.TestCase):
         self.assertTrue(fit_button['interactive'])
         self.assertFalse(csv_file['visible'])
         self.assertTrue(show_csv['visible'])
-        self.assertIn('Approximator input replaced', banner['value'])
+        self.assertEqual(banner['value'], 'Done')
         self.assertTrue(banner['visible'])
 
     def test_fit_uploaded_dataset_accepts_generated_frame(self) -> None:
