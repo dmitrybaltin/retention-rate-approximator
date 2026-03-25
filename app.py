@@ -69,12 +69,13 @@ CUSTOM_CSS: Final[str] = """
 #demo-pane .pane-summary {
   margin-top: 0.25rem;
 }
-#app-banner {
+#demo-push-status {
   background: #e7f6ec;
   border: 1px solid #9ed0ab;
   border-radius: 8px;
   color: #1f5c2e;
-  padding: 0.75rem 1rem;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.92rem;
 }
 """
 
@@ -274,7 +275,7 @@ def request_generated_dataset_transfer(
         gr.update(interactive=True),
         gr.update(visible=False),
         gr.update(visible=True),
-        gr.update(value=_build_banner('Generated dataset was added to the approximator.'), visible=True),
+        gr.update(value=_build_banner('Added to approximator.'), visible=True),
     )
 
 
@@ -293,7 +294,7 @@ def confirm_generated_dataset_transfer(generated_frame: pd.DataFrame | None) -> 
         gr.update(interactive=True),
         gr.update(visible=False),
         gr.update(visible=True),
-        gr.update(value=_build_banner('Generated dataset replaced the previous fit input.'), visible=True),
+        gr.update(value=_build_banner('Approximator input replaced.'), visible=True),
     )
 
 
@@ -398,8 +399,6 @@ def build_app() -> gr.Blocks:
             Expected CSV columns: `date` or `day_number`, `installs`, `retention`, `retention_mean`.
             """
         )
-        app_banner = gr.Markdown(value='', visible=False, elem_id='app-banner')
-
         with gr.Tab('Fit CSV'):
             with gr.Row(elem_id='fit-pane'):
                 with gr.Column(scale=4, elem_classes='pane-column'):
@@ -493,6 +492,7 @@ def build_app() -> gr.Blocks:
                         gr.Markdown('### Generated dataset')
                         demo_download_button = gr.DownloadButton('Download', elem_id='demo-download-button', visible=False, size='sm')
                         send_to_fit_button = gr.Button('Puch to approximator', elem_id='demo-push-button', visible=False, size='sm')
+                    push_status = gr.Markdown(value='', visible=False, elem_id='demo-push-status')
                     demo_plot = gr.Plot(label='Synthetic dataset')
                     generated_table = gr.Dataframe(label='Generated data', interactive=False)
                     overwrite_warning = gr.Markdown(visible=False)
@@ -515,21 +515,21 @@ def build_app() -> gr.Blocks:
                 ],
                 outputs=[generated_state, demo_plot, demo_summary, demo_download_button, generated_table, session_id_state],
             ).then(
-                fn=lambda: (gr.update(visible=True), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False)),
+                fn=lambda: (gr.update(visible=True), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(value='', visible=False)),
                 inputs=None,
-                outputs=[demo_download_button, send_to_fit_button, overwrite_warning, confirm_overwrite_button],
+                outputs=[demo_download_button, send_to_fit_button, overwrite_warning, confirm_overwrite_button, push_status],
             )
 
             send_to_fit_button.click(
                 fn=request_generated_dataset_transfer,
                 inputs=[generated_state, csv_file, fit_has_data_state],
-                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button, app_banner],
+                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button, push_status],
             )
 
             confirm_overwrite_button.click(
                 fn=confirm_generated_dataset_transfer,
                 inputs=[generated_state],
-                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button, app_banner],
+                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button, push_status],
             )
 
     return app
