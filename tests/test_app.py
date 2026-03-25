@@ -5,7 +5,7 @@ import unittest
 import pandas as pd
 
 from app import (
-    _build_dataset_download_path,
+    _build_session_download_path,
     confirm_generated_dataset_transfer,
     fit_uploaded_dataset,
     request_generated_dataset_transfer,
@@ -15,9 +15,11 @@ from app import (
 
 class AppTests(unittest.TestCase):
     def test_download_path_preserves_csv_extension(self) -> None:
-        path = _build_dataset_download_path('demo_dataset.csv')
+        path, session_id = _build_session_download_path('demo_dataset.csv', 'test-session')
         self.assertEqual(path.name, 'demo_dataset.csv')
         self.assertEqual(path.suffix, '.csv')
+        self.assertEqual(path.parent.name, 'test-session')
+        self.assertEqual(session_id, 'test-session')
 
     def test_use_generated_dataset_returns_frame_and_status(self) -> None:
         frame = pd.DataFrame(
@@ -69,7 +71,7 @@ class AppTests(unittest.TestCase):
                 'retention_mean': [0.44, 0.39, 0.34, 0.29],
             }
         )
-        figure, predictions, summary, output_path, fit_has_data = fit_uploaded_dataset(
+        figure, predictions, summary, output_path, fit_has_data, session_id = fit_uploaded_dataset(
             csv_file=None,
             generated_frame=frame,
             first_day_of_week=0,
@@ -81,12 +83,15 @@ class AppTests(unittest.TestCase):
             week_function_weights='1, 1, 1, 1, 1, 1, 1',
             training_mode='Fast',
             exclude_patch_dates=True,
+            session_id='test-session',
         )
         self.assertIsNotNone(figure)
         self.assertEqual(len(predictions), 4)
         self.assertIn('Source: generated dataset', summary)
         self.assertTrue(output_path.endswith('.csv'))
+        self.assertIn('test-session', output_path)
         self.assertTrue(fit_has_data)
+        self.assertEqual(session_id, 'test-session')
 
 
 if __name__ == '__main__':

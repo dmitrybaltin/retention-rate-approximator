@@ -4,6 +4,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Final
+from uuid import uuid4
 
 ROOT_DIR = Path(__file__).resolve().parent
 SRC_DIR = ROOT_DIR / 'src'
@@ -100,6 +101,27 @@ def _build_dataset_download_path(name: str) -> Path:
     return ARTIFACTS_DIR / f'{safe_stem}{suffix}'
 
 
+def _ensure_session_id(session_id: str | None) -> str:
+    if session_id:
+        return session_id
+    return uuid4().hex
+
+
+def _build_session_artifacts_dir(session_id: str | None) -> tuple[Path, str]:
+    active_session_id = _ensure_session_id(session_id)
+    session_dir = ARTIFACTS_DIR / active_session_id
+    session_dir.mkdir(parents=True, exist_ok=True)
+    return session_dir, active_session_id
+
+
+def _build_session_download_path(name: str, session_id: str | None) -> tuple[Path, str]:
+    source = Path(name)
+    safe_stem = ''.join(char if char.isalnum() or char in '-_' else '_' for char in source.stem)
+    suffix = source.suffix or '.csv'
+    session_dir, active_session_id = _build_session_artifacts_dir(session_id)
+    return session_dir / f'{safe_stem}{suffix}', active_session_id
+
+
 def _create_generated_frame(
     total_days: int,
     first_day_of_week: int,
@@ -111,7 +133,8 @@ def _create_generated_frame(
     week_function_weights: str,
     daily_installs_mean: int,
     daily_installs_sigma: int,
-) -> tuple[pd.DataFrame, object, str, str]:
+    session_id: str | None,
+) -> tuple[pd.DataFrame, object, str, str, str]:
     patch_values = _parse_int_list(patches_dates)
     main_weight_values = _parse_float_list(main_function_weights)
     chain_weight_values = _parse_float_list(chain_function_weights)
@@ -128,7 +151,7 @@ def _create_generated_frame(
         daily_installs_mean=daily_installs_mean,
         daily_installs_sigma=daily_installs_sigma,
     )
-    output_path = _build_dataset_download_path('demo_dataset.csv')
+    output_path, active_session_id = _build_session_download_path('demo_dataset.csv', session_id)
     save_retention_csv(
         path=output_path,
         day_numbers=generated.day_numbers,
@@ -151,7 +174,7 @@ def _create_generated_frame(
         f"- Patch dates: {', '.join(str(value) for value in generated.patches_dates) or 'none'}\n"
         f'- Anomaly days: {len(generated.bad_days)}'
     )
-    return frame, figure, details, str(output_path)
+    return frame, figure, details, str(output_path), active_session_id
 
 
 def generate_demo_dataset(
@@ -165,8 +188,9 @@ def generate_demo_dataset(
     week_function_weights: str,
     daily_installs_mean: int,
     daily_installs_sigma: int,
-) -> tuple[pd.DataFrame, object, str, str, pd.DataFrame]:
-    frame, figure, details, output_path = _create_generated_frame(
+    session_id: str | None,
+) -> tuple[pd.DataFrame, object, str, str, pd.DataFrame, str]:
+    frame, figure, details, output_path, active_session_id = _create_generated_frame(
         total_days,
         first_day_of_week,
         patches_dates,
@@ -177,8 +201,9 @@ def generate_demo_dataset(
         week_function_weights,
         daily_installs_mean,
         daily_installs_sigma,
+        session_id,
     )
-    return frame, figure, details, output_path, frame
+    return frame, figure, details, output_path, frame, active_session_id
 
 
 def _fit_source_present(csv_file: str | None, generated_frame: pd.DataFrame | None, fit_has_data: bool) -> bool:
@@ -246,7 +271,8 @@ def fit_uploaded_dataset(
     week_function_weights: str,
     training_mode: str,
     exclude_patch_dates: bool,
-) -> tuple[object, pd.DataFrame, str, str, bool]:
+    session_id: str | None,
+) -> tuple[object, pd.DataFrame, str, str, bool, str]:
     if csv_file is not None:
         dataset = load_retention_csv(csv_file)
         source_label = 'uploaded CSV'
@@ -284,9 +310,9 @@ def fit_uploaded_dataset(
     )
     frame = build_prediction_frame(dataset.day_numbers, dataset.retention, result.predicted, result.predicted_trend)
     summary = f'Source: {source_label}\n\n' + build_training_summary(result)
-    output_path = _build_dataset_download_path('fit_predictions.csv')
+    output_path, active_session_id = _build_session_download_path('fit_predictions.csv', session_id)
     frame.to_csv(output_path, index=False)
-    return figure, frame, summary, str(output_path), True
+    return figure, frame, summary, str(output_path), True, active_session_id
 
 
 def build_app() -> gr.Blocks:
@@ -297,6 +323,7 @@ def build_app() -> gr.Blocks:
     with gr.Blocks(title='Retention Rate Approximator') as app:
         generated_state = gr.State(value=None)
         fit_has_data_state = gr.State(value=False)
+        session_id_state = gr.State(value=None)
 
         gr.Markdown(
             """
@@ -357,8 +384,9 @@ def build_app() -> gr.Blocks:
                     week_function_weights,
                     training_mode,
                     exclude_patch_dates,
+                    session_id_state,
                 ],
-                outputs=[fit_plot, fit_table, fit_summary, predictions_download, fit_has_data_state],
+                outputs=[fit_plot, fit_table, fit_summary, predictions_download, fit_has_data_state, session_id_state],
             )
 
         with gr.Tab('Generate demo'):
@@ -406,8 +434,9 @@ def build_app() -> gr.Blocks:
                     demo_week_function_weights,
                     demo_daily_installs_mean,
                     demo_daily_installs_sigma,
+                    session_id_state,
                 ],
-                outputs=[generated_state, demo_plot, demo_summary, demo_download_button, generated_table],
+                outputs=[generated_state, demo_plot, demo_summary, demo_download_button, generated_table, session_id_state],
             ).then(
                 fn=lambda: (gr.update(visible=True), gr.update(visible=True), gr.update(visible=False), gr.update(visible=False)),
                 inputs=None,
