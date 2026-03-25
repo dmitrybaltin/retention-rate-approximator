@@ -9,7 +9,6 @@ from app import (
     confirm_generated_dataset_transfer,
     fit_uploaded_dataset,
     request_generated_dataset_transfer,
-    show_generated_preview,
     use_generated_dataset_in_fit,
 )
 
@@ -44,7 +43,8 @@ class AppTests(unittest.TestCase):
                 'retention_mean': [0.41, 0.36],
             }
         )
-        status, _warning, _confirm, fit_has_data, fit_button, _csv_file, _show_csv = request_generated_dataset_transfer(frame, None, True)
+        preview, status, _warning, _confirm, fit_has_data, fit_button, _csv_file, _show_csv = request_generated_dataset_transfer(frame, None, True)
+        self.assertIsNotNone(preview)
         self.assertIn('overwrite', status)
         self.assertTrue(fit_has_data)
         self.assertTrue(fit_button['interactive'])
@@ -58,25 +58,13 @@ class AppTests(unittest.TestCase):
                 'retention_mean': [0.41, 0.36],
             }
         )
-        status, _warning, _confirm, fit_has_data, fit_button, csv_file, show_csv = confirm_generated_dataset_transfer(frame)
+        preview, status, _warning, _confirm, fit_has_data, fit_button, csv_file, show_csv = confirm_generated_dataset_transfer(frame)
+        self.assertEqual(len(preview['value']), 2)
         self.assertIn('Generated dataset from Demo is active', status)
         self.assertTrue(fit_has_data)
         self.assertTrue(fit_button['interactive'])
         self.assertFalse(csv_file['visible'])
         self.assertTrue(show_csv['visible'])
-
-    def test_show_generated_preview_makes_dataframe_visible(self) -> None:
-        frame = pd.DataFrame(
-            {
-                'day_number': [0.0, 1.0],
-                'installs': [100.0, 120.0],
-                'retention': [0.4, 0.35],
-                'retention_mean': [0.41, 0.36],
-            }
-        )
-        update = show_generated_preview(frame)
-        self.assertEqual(len(update['value']), 2)
-        self.assertTrue(update['visible'])
 
     def test_fit_uploaded_dataset_accepts_generated_frame(self) -> None:
         frame = pd.DataFrame(

@@ -235,12 +235,13 @@ def request_generated_dataset_transfer(
     generated_frame: pd.DataFrame | None,
     csv_file: str | None,
     fit_has_data: bool,
-) -> tuple[str, object, object, bool, object, object, object]:
+) -> tuple[object, str, object, object, bool, object, object, object]:
     if generated_frame is None or generated_frame.empty:
         raise gr.Error('Generate a demo dataset first.')
     if _fit_source_present(csv_file, None, fit_has_data):
         warning = 'Approximator already has data. Pushing the generated dataset will overwrite it. Click confirm to continue.'
         return (
+            gr.update(),
             warning,
             gr.update(visible=True),
             gr.update(visible=False),
@@ -250,6 +251,7 @@ def request_generated_dataset_transfer(
             gr.update(),
         )
     return (
+        gr.update(value=generated_frame, visible=True),
         _build_source_status(
             'Generated dataset from Demo is ready',
             f'Rows available: {len(generated_frame)}. Click Fit to run the approximator.',
@@ -263,10 +265,11 @@ def request_generated_dataset_transfer(
     )
 
 
-def confirm_generated_dataset_transfer(generated_frame: pd.DataFrame | None) -> tuple[str, object, object, bool, object, object, object]:
+def confirm_generated_dataset_transfer(generated_frame: pd.DataFrame | None) -> tuple[object, str, object, object, bool, object, object, object]:
     if generated_frame is None or generated_frame.empty:
         raise gr.Error('Generate a demo dataset first.')
     return (
+        gr.update(value=generated_frame, visible=True),
         _build_source_status(
             'Generated dataset from Demo is active',
             f'Rows available: {len(generated_frame)}. Previous fit input was replaced.',
@@ -278,12 +281,6 @@ def confirm_generated_dataset_transfer(generated_frame: pd.DataFrame | None) -> 
         gr.update(visible=False),
         gr.update(visible=True),
     )
-
-
-def show_generated_preview(generated_frame: pd.DataFrame | None) -> object:
-    if generated_frame is None or generated_frame.empty:
-        return gr.update(value=None, visible=False)
-    return gr.update(value=generated_frame, visible=True)
 
 
 def on_csv_selected(csv_file: str | None) -> tuple[str, bool, gr.update, object, object, object]:
@@ -511,21 +508,13 @@ def build_app() -> gr.Blocks:
             send_to_fit_button.click(
                 fn=request_generated_dataset_transfer,
                 inputs=[generated_state, csv_file, fit_has_data_state],
-                outputs=[fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button],
-            ).then(
-                fn=show_generated_preview,
-                inputs=[generated_state],
-                outputs=[generated_preview],
+                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button],
             )
 
             confirm_overwrite_button.click(
                 fn=confirm_generated_dataset_transfer,
                 inputs=[generated_state],
-                outputs=[fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button],
-            ).then(
-                fn=show_generated_preview,
-                inputs=[generated_state],
-                outputs=[generated_preview],
+                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button],
             )
 
     return app
