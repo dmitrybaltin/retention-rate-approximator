@@ -20,6 +20,28 @@ from retention_rate_approximator.training import TrainingPhase, train_retention_
 
 ARTIFACTS_DIR: Final[Path] = Path('.artifacts')
 ARTIFACTS_DIR.mkdir(exist_ok=True)
+TOOLTIP_JS: Final[str] = """
+() => {
+  const applyTooltips = () => {
+    const tooltipMap = {
+      'demo-download-button': 'Download the generated dataset as a CSV file.',
+      'demo-push-button': 'Send the generated dataset directly to the approximator without using a file.',
+    };
+    Object.entries(tooltipMap).forEach(([id, title]) => {
+      const root = document.getElementById(id);
+      if (!root) return;
+      root.title = title;
+      const button = root.querySelector('button');
+      if (button) {
+        button.title = title;
+      }
+    });
+  };
+  applyTooltips();
+  const observer = new MutationObserver(applyTooltips);
+  observer.observe(document.body, { childList: true, subtree: true });
+}
+"""
 
 
 def _parse_int_list(raw_value: str) -> list[int]:
@@ -189,7 +211,7 @@ def build_app() -> gr.Blocks:
     chain_function_choices = [spec.name for spec in ApproximatorsFactory.chain_functions]
     connector_choices = [connector[0] for connector in ApproximatorsFactory.connectors]
 
-    with gr.Blocks(title='Retention Rate Approximator') as app:
+    with gr.Blocks(title='Retention Rate Approximator', js=TOOLTIP_JS) as app:
         generated_state = gr.State(value=None)
 
         gr.Markdown(
@@ -244,7 +266,6 @@ def build_app() -> gr.Blocks:
 
         with gr.Tab('Generate demo'):
             with gr.Row():
-                demo_download = gr.File(label='Demo CSV')
                 demo_plot = gr.Plot(label='Synthetic dataset')
             with gr.Row():
                 demo_total_days = gr.Slider(label='Days', minimum=30, maximum=365, value=160, step=1)
@@ -260,7 +281,9 @@ def build_app() -> gr.Blocks:
                 demo_chain_function_weights = gr.Textbox(label='Patch weights', value='0.01, 0.02, 0.02, 0.03, 0.04')
                 demo_week_function_weights = gr.Textbox(label='Week weights', value='1, 1, 1, 1, 1.05, 1.05, 0.9')
             demo_button = gr.Button('Generate demo dataset')
-            send_to_fit_button = gr.Button('Use generated dataset in approximator')
+            with gr.Row():
+                demo_download_button = gr.DownloadButton('⬇ Download CSV', elem_id='demo-download-button', visible=False)
+                send_to_fit_button = gr.Button('⬆ Push to approximator', elem_id='demo-push-button', visible=False)
             demo_summary = gr.Markdown()
 
             demo_button.click(
@@ -277,7 +300,11 @@ def build_app() -> gr.Blocks:
                     demo_daily_installs_mean,
                     demo_daily_installs_sigma,
                 ],
-                outputs=[generated_state, demo_plot, demo_summary, demo_download],
+                outputs=[generated_state, demo_plot, demo_summary, demo_download_button],
+            ).then(
+                fn=lambda: (gr.update(visible=True), gr.update(visible=True)),
+                inputs=None,
+                outputs=[demo_download_button, send_to_fit_button],
             )
 
             send_to_fit_button.click(
