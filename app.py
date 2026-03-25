@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import sys
-from uuid import uuid4
 from pathlib import Path
 from typing import Final
 
@@ -98,8 +97,7 @@ def _build_dataset_download_path(name: str) -> Path:
     source = Path(name)
     safe_stem = ''.join(char if char.isalnum() or char in '-_' else '_' for char in source.stem)
     suffix = source.suffix or '.csv'
-    unique_suffix = uuid4().hex[:12]
-    return ARTIFACTS_DIR / f'{safe_stem}-{unique_suffix}{suffix}'
+    return ARTIFACTS_DIR / f'{safe_stem}{suffix}'
 
 
 def _create_generated_frame(
