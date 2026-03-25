@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
+import inspect
 from pathlib import Path
 from typing import Final
 from uuid import uuid4
@@ -69,6 +70,16 @@ CUSTOM_CSS: Final[str] = """
   margin-top: 0.25rem;
 }
 """
+
+
+def _supports_parameter(callable_obj: object, parameter_name: str) -> bool:
+    return parameter_name in inspect.signature(callable_obj).parameters
+
+
+BLOCKS_SUPPORTS_CSS: Final[bool] = _supports_parameter(gr.Blocks, 'css')
+LAUNCH_SUPPORTS_CSS: Final[bool] = _supports_parameter(gr.Blocks.launch, 'css')
+
+
 def _parse_int_list(raw_value: str) -> list[int]:
     if not raw_value.strip():
         return []
@@ -220,7 +231,7 @@ def request_generated_dataset_transfer(
     generated_frame: pd.DataFrame | None,
     csv_file: str | None,
     fit_has_data: bool,
-) -> tuple[object, str, object, object, bool]:
+) -> tuple[object, str, object, object, bool, object]:
     if generated_frame is None or generated_frame.empty:
         raise gr.Error('Generate a demo dataset first.')
     if _fit_source_present(csv_file, None, fit_has_data):
@@ -231,6 +242,7 @@ def request_generated_dataset_transfer(
             gr.update(visible=True),
             gr.update(visible=False),
             fit_has_data,
+            gr.update(interactive=fit_has_data),
         )
     return (
         generated_frame,
@@ -238,10 +250,11 @@ def request_generated_dataset_transfer(
         gr.update(visible=False),
         gr.update(visible=True),
         True,
+        gr.update(interactive=True),
     )
 
 
-def confirm_generated_dataset_transfer(generated_frame: pd.DataFrame | None) -> tuple[pd.DataFrame, str, object, object, bool]:
+def confirm_generated_dataset_transfer(generated_frame: pd.DataFrame | None) -> tuple[pd.DataFrame, str, object, object, bool, object]:
     if generated_frame is None or generated_frame.empty:
         raise gr.Error('Generate a demo dataset first.')
     return (
@@ -250,13 +263,14 @@ def confirm_generated_dataset_transfer(generated_frame: pd.DataFrame | None) -> 
         gr.update(visible=False),
         gr.update(visible=True),
         True,
+        gr.update(interactive=True),
     )
 
 
-def on_csv_selected(csv_file: str | None) -> tuple[str, bool, gr.update]:
+def on_csv_selected(csv_file: str | None) -> tuple[str, bool, gr.update, object]:
     if csv_file is None:
-        return 'Source: upload a CSV or send a generated dataset from the demo tab.', False, gr.update(visible=False)
-    return 'Source: uploaded CSV selected. Click Fit model to use it.', True, gr.update(visible=False)
+        return 'Source: upload a CSV or send a generated dataset from the demo tab.', False, gr.update(visible=False), gr.update(interactive=False)
+    return 'Source: uploaded CSV selected. Click Fit model to use it.', True, gr.update(visible=False), gr.update(interactive=True)
 
 
 def fit_uploaded_dataset(
@@ -272,7 +286,7 @@ def fit_uploaded_dataset(
     training_mode: str,
     exclude_patch_dates: bool,
     session_id: str | None,
-) -> tuple[object, pd.DataFrame, str, str, bool, str]:
+) -> tuple[object, pd.DataFrame, str, object, bool, str]:
     if csv_file is not None:
         dataset = load_retention_csv(csv_file)
         source_label = 'uploaded CSV'
@@ -312,15 +326,18 @@ def fit_uploaded_dataset(
     summary = f'Source: {source_label}\n\n' + build_training_summary(result)
     output_path, active_session_id = _build_session_download_path('fit_predictions.csv', session_id)
     frame.to_csv(output_path, index=False)
-    return figure, frame, summary, str(output_path), True, active_session_id
+    return figure, frame, summary, gr.update(value=str(output_path), interactive=True), True, active_session_id
 
 
 def build_app() -> gr.Blocks:
     main_function_choices = [spec.name for spec in ApproximatorsFactory.main_functions]
     chain_function_choices = [spec.name for spec in ApproximatorsFactory.chain_functions]
     connector_choices = [connector[0] for connector in ApproximatorsFactory.connectors]
+    blocks_kwargs: dict[str, object] = {'title': 'Retention Rate Approximator'}
+    if BLOCKS_SUPPORTS_CSS:
+        blocks_kwargs['css'] = CUSTOM_CSS
 
-    with gr.Blocks(title='Retention Rate Approximator') as app:
+    with gr.Blocks(**blocks_kwargs) as app:
         generated_state = gr.State(value=None)
         fit_has_data_state = gr.State(value=False)
         session_id_state = gr.State(value=None)
@@ -339,7 +356,7 @@ def build_app() -> gr.Blocks:
                 with gr.Column(scale=4, elem_classes='pane-column'):
                     with gr.Row(elem_classes='pane-header'):
                         gr.Markdown('### Configure and Fit')
-                        fit_button = gr.Button('Fit', variant='primary', size='sm')
+                        fit_button = gr.Button('Fit', variant='primary', size='sm', interactive=False)
                     fit_source_status = gr.Markdown('Source: upload a CSV or send a generated dataset from the demo tab.', elem_classes='pane-summary')
                     csv_file = gr.File(label='Retention CSV', file_types=['.csv'], type='filepath')
                     generated_preview = gr.Dataframe(label='Generated dataset passed from demo tab', interactive=False, visible=False)
@@ -357,17 +374,18 @@ def build_app() -> gr.Blocks:
                         bad_dates = gr.Textbox(label='Bad dates', value='', placeholder='12, 45')
                     week_function_weights = gr.Textbox(label='Week weights', value='1, 1, 1, 1, 1, 1, 1')
                 with gr.Column(scale=6, elem_classes='pane-column'):
-                    gr.Markdown('### Results')
+                    with gr.Row(elem_classes='pane-header'):
+                        gr.Markdown('### Results')
+                        predictions_download = gr.DownloadButton('Download Results', interactive=False, size='sm')
                     fit_plot = gr.Plot(label='Fit plot')
                     fit_table = gr.Dataframe(label='Predictions', interactive=False)
-                    predictions_download = gr.File(label='Download results CSV')
                     gr.Markdown('### Run summary')
                     fit_summary = gr.Markdown(elem_classes='pane-summary')
 
             csv_file.change(
                 fn=on_csv_selected,
                 inputs=[csv_file],
-                outputs=[fit_source_status, fit_has_data_state, generated_preview],
+                outputs=[fit_source_status, fit_has_data_state, generated_preview, fit_button],
             )
 
             fit_button.click(
@@ -446,7 +464,7 @@ def build_app() -> gr.Blocks:
             send_to_fit_button.click(
                 fn=request_generated_dataset_transfer,
                 inputs=[generated_state, csv_file, fit_has_data_state],
-                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state],
+                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button],
             ).then(
                 fn=lambda frame: gr.update(visible=frame is not None),
                 inputs=[generated_preview],
@@ -456,7 +474,7 @@ def build_app() -> gr.Blocks:
             confirm_overwrite_button.click(
                 fn=confirm_generated_dataset_transfer,
                 inputs=[generated_state],
-                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state],
+                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button],
             ).then(
                 fn=lambda: gr.update(visible=True),
                 inputs=None,
@@ -470,9 +488,11 @@ app = build_app()
 
 
 if __name__ == '__main__':
-    app.launch(
-        css=CUSTOM_CSS,
-        server_name='0.0.0.0',
-        server_port=int(os.environ.get('PORT', '7860')),
-        ssr_mode=False,
-    )
+    launch_kwargs: dict[str, object] = {
+        'server_name': '0.0.0.0',
+        'server_port': int(os.environ.get('PORT', '7860')),
+        'ssr_mode': False,
+    }
+    if LAUNCH_SUPPORTS_CSS:
+        launch_kwargs['css'] = CUSTOM_CSS
+    app.launch(**launch_kwargs)
