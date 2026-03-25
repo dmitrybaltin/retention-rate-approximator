@@ -69,6 +69,13 @@ CUSTOM_CSS: Final[str] = """
 #demo-pane .pane-summary {
   margin-top: 0.25rem;
 }
+#app-banner {
+  background: #e7f6ec;
+  border: 1px solid #9ed0ab;
+  border-radius: 8px;
+  color: #1f5c2e;
+  padding: 0.75rem 1rem;
+}
 """
 
 
@@ -225,6 +232,10 @@ def _build_source_status(title: str, detail: str) -> str:
     return f'### Data source status\n**{title}**\n\n{detail}'
 
 
+def _build_banner(message: str) -> str:
+    return f'**{message}**'
+
+
 def use_generated_dataset_in_fit(generated_frame: pd.DataFrame | None) -> tuple[pd.DataFrame, str]:
     if generated_frame is None or generated_frame.empty:
         raise gr.Error('Generate a demo dataset first.')
@@ -235,7 +246,7 @@ def request_generated_dataset_transfer(
     generated_frame: pd.DataFrame | None,
     csv_file: str | None,
     fit_has_data: bool,
-) -> tuple[object, str, object, object, bool, object, object, object]:
+) -> tuple[object, str, object, object, bool, object, object, object, object]:
     if generated_frame is None or generated_frame.empty:
         raise gr.Error('Generate a demo dataset first.')
     if _fit_source_present(csv_file, None, fit_has_data):
@@ -247,6 +258,7 @@ def request_generated_dataset_transfer(
             gr.update(visible=False),
             fit_has_data,
             gr.update(interactive=fit_has_data),
+            gr.update(),
             gr.update(),
             gr.update(),
         )
@@ -262,10 +274,11 @@ def request_generated_dataset_transfer(
         gr.update(interactive=True),
         gr.update(visible=False),
         gr.update(visible=True),
+        gr.update(value=_build_banner('Generated dataset was added to the approximator.'), visible=True),
     )
 
 
-def confirm_generated_dataset_transfer(generated_frame: pd.DataFrame | None) -> tuple[object, str, object, object, bool, object, object, object]:
+def confirm_generated_dataset_transfer(generated_frame: pd.DataFrame | None) -> tuple[object, str, object, object, bool, object, object, object, object]:
     if generated_frame is None or generated_frame.empty:
         raise gr.Error('Generate a demo dataset first.')
     return (
@@ -280,6 +293,7 @@ def confirm_generated_dataset_transfer(generated_frame: pd.DataFrame | None) -> 
         gr.update(interactive=True),
         gr.update(visible=False),
         gr.update(visible=True),
+        gr.update(value=_build_banner('Generated dataset replaced the previous fit input.'), visible=True),
     )
 
 
@@ -384,6 +398,7 @@ def build_app() -> gr.Blocks:
             Expected CSV columns: `date` or `day_number`, `installs`, `retention`, `retention_mean`.
             """
         )
+        app_banner = gr.Markdown(value='', visible=False, elem_id='app-banner')
 
         with gr.Tab('Fit CSV'):
             with gr.Row(elem_id='fit-pane'):
@@ -508,13 +523,13 @@ def build_app() -> gr.Blocks:
             send_to_fit_button.click(
                 fn=request_generated_dataset_transfer,
                 inputs=[generated_state, csv_file, fit_has_data_state],
-                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button],
+                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button, app_banner],
             )
 
             confirm_overwrite_button.click(
                 fn=confirm_generated_dataset_transfer,
                 inputs=[generated_state],
-                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button],
+                outputs=[generated_preview, fit_source_status, overwrite_warning, confirm_overwrite_button, fit_has_data_state, fit_button, csv_file, show_csv_upload_button, app_banner],
             )
 
     return app
