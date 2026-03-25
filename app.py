@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from typing import Final
@@ -317,7 +318,7 @@ def build_app() -> gr.Blocks:
     chain_function_choices = [spec.name for spec in ApproximatorsFactory.chain_functions]
     connector_choices = [connector[0] for connector in ApproximatorsFactory.connectors]
 
-    with gr.Blocks(title='Retention Rate Approximator', css=CUSTOM_CSS, js=TOOLTIP_JS) as app:
+    with gr.Blocks(title='Retention Rate Approximator') as app:
         generated_state = gr.State(value=None)
         fit_has_data_state = gr.State(value=False)
 
@@ -464,4 +465,10 @@ app = build_app()
 
 
 if __name__ == '__main__':
-    app.launch()
+    app.launch(
+        css=CUSTOM_CSS,
+        js=TOOLTIP_JS,
+        server_name='0.0.0.0',
+        server_port=int(os.environ.get('PORT', '7860')),
+        ssr_mode=False,
+    )
