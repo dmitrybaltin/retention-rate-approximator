@@ -14,7 +14,7 @@ def _to_parameter(values: Sequence[float]) -> nn.Parameter:
 class ConstantFunction(nn.Module):
     def __init__(self, initial_weights: float | None = None) -> None:
         super().__init__()
-        initial_value = 0.25 if initial_weights is None else float(initial_weights)
+        initial_value = 0.0 if initial_weights is None else float(initial_weights)
         self.w = nn.Parameter(torch.tensor([initial_value], dtype=torch.float32))
 
     def forward(self, x: Tensor) -> Tensor:
@@ -32,7 +32,7 @@ class ConstantFunction(nn.Module):
 class LinearFunction(nn.Module):
     def __init__(self, initial_weights: Sequence[float] | None = None) -> None:
         super().__init__()
-        values = [0.25, 0.25] if initial_weights is None else initial_weights
+        values = [0.0, 0.0] if initial_weights is None else initial_weights
         self.w = _to_parameter(values)
 
     def forward(self, x: Tensor) -> Tensor:
@@ -338,3 +338,5 @@ class ComplexApproximator(nn.Module):
         for name, param in self.named_parameters():
             summary[name] = [float(value) for value in param.detach().cpu().flatten()]
         return summary
+
+
