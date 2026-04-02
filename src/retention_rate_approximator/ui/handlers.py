@@ -74,7 +74,7 @@ def request_generated_dataset_transfer(
     generated_csv_path: str | None,
     fit_source_kind: str,
     y_axis_mode: YAxisMode = 'zero',
-) -> tuple[object, object, object, str, object, object, object, object, str, pd.DataFrame | None]:
+) -> tuple[object, object, object, str, object, object, object, str, pd.DataFrame | None]:
     if generated_csv_path is None:
         raise gr.Error('Generate a demo dataset first.')
     if fit_source_kind != SOURCE_NONE:
@@ -87,12 +87,11 @@ def request_generated_dataset_transfer(
             gr.update(visible=True),
             gr.update(),
             gr.update(),
-            gr.update(),
             fit_source_kind,
             None,
         )
     dataset = load_retention_csv(generated_csv_path)
-    status, preview_plot, preview_table, fit_button, csv_input, clear_button = fit_source_ui_updates(
+    status, preview_plot, preview_table, fit_button, csv_input = fit_source_ui_updates(
         SOURCE_GENERATED,
         dataset.frame,
         generated_csv_path,
@@ -107,7 +106,6 @@ def request_generated_dataset_transfer(
         gr.update(visible=False),
         fit_button,
         csv_input,
-        clear_button,
         SOURCE_GENERATED,
         dataset.frame,
     )
@@ -116,11 +114,11 @@ def request_generated_dataset_transfer(
 def confirm_generated_dataset_transfer(
     generated_csv_path: str | None,
     y_axis_mode: YAxisMode = 'zero',
-) -> tuple[object, object, object, str, object, object, object, object, str, pd.DataFrame | None]:
+) -> tuple[object, object, object, str, object, object, object, str, pd.DataFrame | None]:
     if generated_csv_path is None:
         raise gr.Error('Generate a demo dataset first.')
     dataset = load_retention_csv(generated_csv_path)
-    status, preview_plot, preview_table, fit_button, csv_input, clear_button = fit_source_ui_updates(
+    status, preview_plot, preview_table, fit_button, csv_input = fit_source_ui_updates(
         SOURCE_GENERATED,
         dataset.frame,
         generated_csv_path,
@@ -135,7 +133,6 @@ def confirm_generated_dataset_transfer(
         gr.update(visible=False),
         fit_button,
         csv_input,
-        clear_button,
         SOURCE_GENERATED,
         dataset.frame,
     )
@@ -144,28 +141,24 @@ def confirm_generated_dataset_transfer(
 def on_csv_selected(
     csv_file: str | None,
     y_axis_mode: YAxisMode = 'zero',
-) -> tuple[str, object, object, object, object, str, pd.DataFrame | None]:
+) -> tuple[str, object, object, object, str, pd.DataFrame | None]:
     if csv_file is None:
-        status, preview_plot, preview_table, fit_button, _, clear_button = fit_source_ui_updates(
+        status, preview_plot, preview_table, fit_button, _ = fit_source_ui_updates(
             SOURCE_NONE,
             None,
             y_axis_mode=y_axis_mode,
         )
-        return status, preview_plot, preview_table, fit_button, clear_button, SOURCE_NONE, None
+        return status, preview_plot, preview_table, fit_button, SOURCE_NONE, None
     dataset = load_retention_csv(csv_file)
     source_kind = SOURCE_GENERATED if Path(csv_file).name == 'demo_dataset.csv' else SOURCE_UPLOADED
-    status, preview_plot, preview_table, fit_button, _, clear_button = fit_source_ui_updates(
+    status, preview_plot, preview_table, fit_button, _ = fit_source_ui_updates(
         source_kind,
         dataset.frame,
         csv_file,
         y_axis_mode,
     )
-    return status, preview_plot, preview_table, fit_button, clear_button, source_kind, dataset.frame
+    return status, preview_plot, preview_table, fit_button, source_kind, dataset.frame
 
-
-def clear_generated_source() -> tuple[str, object, object, object, object, object, str, None]:
-    status, preview_plot, preview_table, fit_button, csv_input, clear_button = fit_source_ui_updates(SOURCE_NONE, None)
-    return status, preview_plot, preview_table, fit_button, csv_input, clear_button, SOURCE_NONE, None
 
 
 def fit_uploaded_dataset(

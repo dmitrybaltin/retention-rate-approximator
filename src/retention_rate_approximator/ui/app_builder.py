@@ -8,7 +8,6 @@ import gradio as gr
 
 from retention_rate_approximator.core.modeling import ApproximatorsFactory
 from retention_rate_approximator.ui.handlers import (
-    clear_generated_source,
     confirm_generated_dataset_transfer,
     fit_uploaded_dataset,
     generate_demo_dataset,
@@ -175,7 +174,6 @@ def build_app() -> gr.Blocks:
                     gr.Markdown('#### Data source')
                     fit_source_status = gr.Markdown(build_source_status(SOURCE_NONE), elem_classes='pane-summary')
                     csv_file = gr.File(label='Retention CSV', file_types=['.csv'], type='filepath')
-                    clear_generated_source_button = gr.Button('Clear generated dataset', size='sm', visible=False)
                     with gr.Tab('Chart'):
                         with gr.Row(elem_classes='axis-toolbar'):
                             gr.Markdown('##### Source chart')
@@ -245,19 +243,13 @@ def build_app() -> gr.Blocks:
             csv_file.change(
                 fn=on_csv_selected,
                 inputs=[csv_file, preview_y_axis_mode],
-                outputs=[fit_source_status, source_preview_plot, generated_preview, fit_button, clear_generated_source_button, fit_source_kind_state, fit_preview_frame_state],
+                outputs=[fit_source_status, source_preview_plot, generated_preview, fit_button, fit_source_kind_state, fit_preview_frame_state],
             )
 
             preview_y_axis_mode.change(
                 fn=rerender_preview_plot,
                 inputs=[fit_preview_frame_state, preview_y_axis_mode],
                 outputs=[source_preview_plot],
-            )
-
-            clear_generated_source_button.click(
-                fn=clear_generated_source,
-                inputs=None,
-                outputs=[fit_source_status, source_preview_plot, generated_preview, fit_button, csv_file, clear_generated_source_button, fit_source_kind_state, fit_preview_frame_state],
             )
 
             fit_result_y_axis_mode.change(
@@ -382,13 +374,13 @@ def build_app() -> gr.Blocks:
             send_to_fit_button.click(
                 fn=request_generated_dataset_transfer,
                 inputs=[generated_csv_state, fit_source_kind_state, preview_y_axis_mode],
-                outputs=[fit_source_status, source_preview_plot, generated_preview, overwrite_warning, confirm_overwrite_button, fit_button, csv_file, clear_generated_source_button, fit_source_kind_state, fit_preview_frame_state],
+                outputs=[fit_source_status, source_preview_plot, generated_preview, overwrite_warning, confirm_overwrite_button, fit_button, csv_file, fit_source_kind_state, fit_preview_frame_state],
             )
 
             confirm_overwrite_button.click(
                 fn=confirm_generated_dataset_transfer,
                 inputs=[generated_csv_state, preview_y_axis_mode],
-                outputs=[fit_source_status, source_preview_plot, generated_preview, overwrite_warning, confirm_overwrite_button, fit_button, csv_file, clear_generated_source_button, fit_source_kind_state, fit_preview_frame_state],
+                outputs=[fit_source_status, source_preview_plot, generated_preview, overwrite_warning, confirm_overwrite_button, fit_button, csv_file, fit_source_kind_state, fit_preview_frame_state],
             )
 
     return app

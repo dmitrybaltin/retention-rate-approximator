@@ -47,7 +47,7 @@ def _apply_y_axis_mode(axis: plt.Axes, series: list[np.ndarray], mode: YAxisMode
 
 
 def plot_fit_results(data: FitPlotData, y_axis_mode: YAxisMode = 'zero') -> Figure:
-    figure, axis = plt.subplots(figsize=(12, 5))
+    figure, axis = plt.subplots(figsize=(12, 8))
     x_all = data.day_numbers.detach().cpu().numpy()
     retention = data.retention.detach().cpu().numpy()
     predicted = data.predicted.detach().cpu().numpy()
@@ -97,7 +97,7 @@ def plot_dataset_preview(frame: pd.DataFrame, y_axis_mode: YAxisMode = 'zero') -
 
 
 def plot_generated_frame(frame: pd.DataFrame, y_axis_mode: YAxisMode = 'zero') -> Figure:
-    figure, axis = plt.subplots(figsize=(12, 5))
+    figure, axis = plt.subplots(figsize=(12, 8))
     x_values = frame['day_number'].to_numpy()
     retention = frame['retention'].to_numpy()
     series = [retention]
@@ -125,7 +125,7 @@ def plot_prediction_chart(
     confidence_band_mode: ConfidenceBandMode = 'off',
     confidence_target_mode: ConfidenceTargetMode = 'predicted',
 ) -> Figure:
-    figure, axis = plt.subplots(figsize=(12, 5))
+    figure, axis = plt.subplots(figsize=(12, 8))
     x_values = frame['day_number'].to_numpy()
     retention = frame['retention'].to_numpy()
     predicted_retention = frame['predicted_retention'].to_numpy()
@@ -167,7 +167,7 @@ def plot_prediction_chart(
 
 
 def plot_synthetic_dataset(generated: GeneratedRetentionDataset, y_axis_mode: YAxisMode = 'zero') -> Figure:
-    figure, axis = plt.subplots(figsize=(12, 5))
+    figure, axis = plt.subplots(figsize=(12, 8))
     x_values = generated.day_numbers.detach().cpu().numpy()
     retention = generated.retention.detach().cpu().numpy()
     oscillations = generated.retention_with_oscillations.detach().cpu().numpy()

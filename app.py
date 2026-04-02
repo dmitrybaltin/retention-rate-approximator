@@ -10,7 +10,6 @@ if str(SRC_DIR) not in sys.path:
 
 from retention_rate_approximator.ui.app_builder import app, build_app, create_launch_kwargs
 from retention_rate_approximator.ui.handlers import (
-    clear_generated_source,
     confirm_generated_dataset_transfer,
     fit_uploaded_dataset,
     generate_demo_dataset,

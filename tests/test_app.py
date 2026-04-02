@@ -10,7 +10,6 @@ from app import (
     SOURCE_NONE,
     SOURCE_UPLOADED,
     _build_session_download_path,
-    clear_generated_source,
     confirm_generated_dataset_transfer,
     fit_uploaded_dataset,
     on_csv_selected,
@@ -33,7 +32,7 @@ class AppTests(unittest.TestCase):
         self.assertIn('ready for fitting', status)
 
     def test_request_generated_dataset_transfer_requires_confirmation_when_source_exists(self) -> None:
-        status, preview_plot, preview_table, warning, confirm_button, fit_button, csv_file, clear_button, source_kind, preview_frame = request_generated_dataset_transfer(
+        status, preview_plot, preview_table, warning, confirm_button, fit_button, csv_file, source_kind, preview_frame = request_generated_dataset_transfer(
             '.artifacts/test-session/demo_dataset.csv',
             SOURCE_UPLOADED,
         )
@@ -44,7 +43,6 @@ class AppTests(unittest.TestCase):
         self.assertTrue(confirm_button['visible'])
         self.assertNotIn('interactive', fit_button)
         self.assertNotIn('value', csv_file)
-        self.assertNotIn('visible', clear_button)
         self.assertEqual(source_kind, SOURCE_UPLOADED)
         self.assertIsNone(preview_frame)
 
@@ -61,7 +59,7 @@ class AppTests(unittest.TestCase):
         )
         frame.to_csv(csv_file, index=False)
         try:
-            status, preview_plot, preview_table, warning, confirm_button, fit_button, csv_update, clear_button, source_kind, preview_frame = confirm_generated_dataset_transfer(csv_file)
+            status, preview_plot, preview_table, warning, confirm_button, fit_button, csv_update, source_kind, preview_frame = confirm_generated_dataset_transfer(csv_file)
             self.assertIn('demo_dataset.csv', status)
             self.assertTrue(preview_plot['visible'])
             self.assertEqual(len(preview_table['value']), 2)
@@ -69,23 +67,11 @@ class AppTests(unittest.TestCase):
             self.assertFalse(confirm_button['visible'])
             self.assertTrue(fit_button['interactive'])
             self.assertEqual(csv_update['value'], csv_file)
-            self.assertTrue(clear_button['visible'])
             self.assertEqual(source_kind, SOURCE_GENERATED)
             self.assertEqual(len(preview_frame), 2)
         finally:
             if os.path.exists(csv_file):
                 os.remove(csv_file)
-
-    def test_clear_generated_source_resets_fit_input(self) -> None:
-        status, preview_plot, preview_table, fit_button, csv_file, clear_button, source_kind, preview_frame = clear_generated_source()
-        self.assertIn('none', status)
-        self.assertFalse(preview_plot['visible'])
-        self.assertFalse(preview_table['visible'])
-        self.assertFalse(fit_button['interactive'])
-        self.assertIsNone(csv_file['value'])
-        self.assertFalse(clear_button['visible'])
-        self.assertEqual(source_kind, SOURCE_NONE)
-        self.assertIsNone(preview_frame)
 
     def test_on_csv_selected_shows_preview(self) -> None:
         os.makedirs('.artifacts/test-session', exist_ok=True)
@@ -100,12 +86,11 @@ class AppTests(unittest.TestCase):
         )
         frame.to_csv(csv_file, index=False)
         try:
-            status, preview_plot, preview_table, fit_button, clear_button, source_kind, preview_frame = on_csv_selected(csv_file)
+            status, preview_plot, preview_table, fit_button, source_kind, preview_frame = on_csv_selected(csv_file)
             self.assertIn('upload.csv', status)
             self.assertTrue(preview_plot['visible'])
             self.assertEqual(len(preview_table['value']), 2)
             self.assertTrue(fit_button['interactive'])
-            self.assertFalse(clear_button['visible'])
             self.assertEqual(source_kind, SOURCE_UPLOADED)
             self.assertEqual(len(preview_frame), 2)
         finally:

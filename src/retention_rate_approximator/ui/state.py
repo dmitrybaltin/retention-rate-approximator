@@ -38,13 +38,12 @@ def fit_source_ui_updates(
     preview_frame: pd.DataFrame | None,
     file_path: str | None = None,
     y_axis_mode: YAxisMode = 'zero',
-) -> tuple[str, object, object, object, object, object]:
+) -> tuple[str, object, object, object, object]:
     row_count = None if preview_frame is None else len(preview_frame)
     return (
         build_source_status(source_kind, row_count, file_path),
         build_preview_plot_update(preview_frame, y_axis_mode),
         build_preview_table_update(preview_frame),
         gr.update(interactive=source_kind != SOURCE_NONE),
-        gr.update(value=file_path, visible=True),
-        gr.update(visible=source_kind == SOURCE_GENERATED),
+        gr.update(value=file_path, visible=True)
     )
