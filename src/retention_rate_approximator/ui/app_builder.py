@@ -14,6 +14,9 @@ from retention_rate_approximator.ui.handlers import (
     generate_demo_dataset,
     on_csv_selected,
     request_generated_dataset_transfer,
+    rerender_demo_plot,
+    rerender_fit_plot,
+    rerender_preview_plot,
 )
 from retention_rate_approximator.ui.state import SOURCE_NONE, build_source_status
 
@@ -61,6 +64,42 @@ CUSTOM_CSS: Final[str] = """
 #demo-pane .gr-tabitem {
   padding-top: 0.5rem;
 }
+.axis-toolbar {
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+.axis-toolbar .gr-markdown {
+  margin: 0;
+}
+.axis-toggle {
+  min-width: 210px;
+  max-width: 210px;
+}
+.axis-toggle fieldset,
+.axis-toggle .wrap,
+.axis-toggle .gradio-radio {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: nowrap !important;
+}
+.axis-toggle label {
+  margin: 0;
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  min-width: 0 !important;
+  box-shadow: none !important;
+}
+.axis-toggle label span {
+  white-space: nowrap;
+}
+.axis-toggle label:has(input[type='radio']) {
+  align-items: center;
+}
 """
 
 
@@ -87,13 +126,17 @@ def build_app() -> gr.Blocks:
     main_function_choices = [spec.name for spec in ApproximatorsFactory.main_functions]
     chain_function_choices = [spec.name for spec in ApproximatorsFactory.chain_functions]
     connector_choices = [connector[0] for connector in ApproximatorsFactory.connectors]
+    y_axis_mode_choices = [('Y from 0', 'zero'), ('Auto-fit Y', 'auto')]
     blocks_kwargs: dict[str, object] = {'title': 'Retention Rate Approximator'}
     if BLOCKS_SUPPORTS_CSS:
         blocks_kwargs['css'] = CUSTOM_CSS
 
     with gr.Blocks(**blocks_kwargs) as app:
         generated_csv_state = gr.State(value=None)
+        generated_frame_state = gr.State(value=None)
         fit_source_kind_state = gr.State(value=SOURCE_NONE)
+        fit_preview_frame_state = gr.State(value=None)
+        fit_result_frame_state = gr.State(value=None)
         session_id_state = gr.State(value=None)
 
         gr.Markdown(
@@ -115,6 +158,17 @@ def build_app() -> gr.Blocks:
                     csv_file = gr.File(label='Retention CSV', file_types=['.csv'], type='filepath')
                     clear_generated_source_button = gr.Button('Clear generated dataset', size='sm', visible=False)
                     with gr.Tab('Chart'):
+                        with gr.Row(elem_classes='axis-toolbar'):
+                            gr.Markdown('##### Source chart')
+                            preview_y_axis_mode = gr.Radio(
+                                choices=y_axis_mode_choices,
+                                value='zero',
+                                container=False,
+                                show_label=False,
+                                elem_classes='axis-toggle',
+                                interactive=True,
+                                type='value',
+                            )
                         source_preview_plot = gr.Plot(visible=False)
                     with gr.Tab('Table'):
                         generated_preview = gr.Dataframe(interactive=False, visible=False)
@@ -137,6 +191,17 @@ def build_app() -> gr.Blocks:
                         gr.Markdown('### Results')
                         predictions_download = gr.DownloadButton('Download Results', interactive=False, size='sm')
                     with gr.Tab('Chart'):
+                        with gr.Row(elem_classes='axis-toolbar'):
+                            gr.Markdown('##### Result chart')
+                            fit_result_y_axis_mode = gr.Radio(
+                                choices=y_axis_mode_choices,
+                                value='zero',
+                                container=False,
+                                show_label=False,
+                                elem_classes='axis-toggle',
+                                interactive=True,
+                                type='value',
+                            )
                         fit_plot = gr.Plot()
                     with gr.Tab('Table'):
                         fit_table = gr.Dataframe(interactive=False)
@@ -145,14 +210,26 @@ def build_app() -> gr.Blocks:
 
             csv_file.change(
                 fn=on_csv_selected,
-                inputs=[csv_file],
-                outputs=[fit_source_status, source_preview_plot, generated_preview, fit_button, clear_generated_source_button, fit_source_kind_state],
+                inputs=[csv_file, preview_y_axis_mode],
+                outputs=[fit_source_status, source_preview_plot, generated_preview, fit_button, clear_generated_source_button, fit_source_kind_state, fit_preview_frame_state],
+            )
+
+            preview_y_axis_mode.change(
+                fn=rerender_preview_plot,
+                inputs=[fit_preview_frame_state, preview_y_axis_mode],
+                outputs=[source_preview_plot],
             )
 
             clear_generated_source_button.click(
                 fn=clear_generated_source,
                 inputs=None,
-                outputs=[fit_source_status, source_preview_plot, generated_preview, fit_button, csv_file, clear_generated_source_button, fit_source_kind_state],
+                outputs=[fit_source_status, source_preview_plot, generated_preview, fit_button, csv_file, clear_generated_source_button, fit_source_kind_state, fit_preview_frame_state],
+            )
+
+            fit_result_y_axis_mode.change(
+                fn=rerender_fit_plot,
+                inputs=[fit_result_frame_state, fit_result_y_axis_mode],
+                outputs=[fit_plot],
             )
 
             fit_button.click(
@@ -169,9 +246,10 @@ def build_app() -> gr.Blocks:
                     week_function_weights,
                     training_mode,
                     exclude_patch_dates,
+                    fit_result_y_axis_mode,
                     session_id_state,
                 ],
-                outputs=[fit_plot, fit_table, fit_summary, predictions_download, fit_source_kind_state, session_id_state],
+                outputs=[fit_plot, fit_table, fit_summary, predictions_download, fit_source_kind_state, session_id_state, fit_result_frame_state],
             )
 
         with gr.Tab('Generate demo'):
@@ -202,6 +280,17 @@ def build_app() -> gr.Blocks:
                         demo_download_button = gr.DownloadButton('Download', visible=False, size='sm')
                         send_to_fit_button = gr.Button('Puch to approximator', visible=False, size='sm')
                     with gr.Tab('Chart'):
+                        with gr.Row(elem_classes='axis-toolbar'):
+                            gr.Markdown('##### Generated chart')
+                            demo_chart_y_axis_mode = gr.Radio(
+                                choices=y_axis_mode_choices,
+                                value='zero',
+                                container=False,
+                                show_label=False,
+                                elem_classes='axis-toggle',
+                                interactive=True,
+                                type='value',
+                            )
                         demo_plot = gr.Plot()
                     with gr.Tab('Table'):
                         generated_table = gr.Dataframe(interactive=False)
@@ -221,9 +310,10 @@ def build_app() -> gr.Blocks:
                     demo_week_function_weights,
                     demo_daily_installs_mean,
                     demo_daily_installs_sigma,
+                    demo_chart_y_axis_mode,
                     session_id_state,
                 ],
-                outputs=[generated_csv_state, demo_plot, demo_summary, demo_download_button, generated_table, session_id_state],
+                outputs=[generated_csv_state, demo_plot, demo_summary, demo_download_button, generated_table, session_id_state, generated_frame_state],
             ).then(
                 fn=lambda: (
                     gr.update(visible=True),
@@ -235,20 +325,25 @@ def build_app() -> gr.Blocks:
                 outputs=[demo_download_button, send_to_fit_button, overwrite_warning, confirm_overwrite_button],
             )
 
+            demo_chart_y_axis_mode.change(
+                fn=rerender_demo_plot,
+                inputs=[generated_frame_state, demo_chart_y_axis_mode],
+                outputs=[demo_plot],
+            )
+
             send_to_fit_button.click(
                 fn=request_generated_dataset_transfer,
-                inputs=[generated_csv_state, fit_source_kind_state],
-                outputs=[fit_source_status, source_preview_plot, generated_preview, overwrite_warning, confirm_overwrite_button, fit_button, csv_file, clear_generated_source_button, fit_source_kind_state],
+                inputs=[generated_csv_state, fit_source_kind_state, preview_y_axis_mode],
+                outputs=[fit_source_status, source_preview_plot, generated_preview, overwrite_warning, confirm_overwrite_button, fit_button, csv_file, clear_generated_source_button, fit_source_kind_state, fit_preview_frame_state],
             )
 
             confirm_overwrite_button.click(
                 fn=confirm_generated_dataset_transfer,
-                inputs=[generated_csv_state],
-                outputs=[fit_source_status, source_preview_plot, generated_preview, overwrite_warning, confirm_overwrite_button, fit_button, csv_file, clear_generated_source_button, fit_source_kind_state],
+                inputs=[generated_csv_state, preview_y_axis_mode],
+                outputs=[fit_source_status, source_preview_plot, generated_preview, overwrite_warning, confirm_overwrite_button, fit_button, csv_file, clear_generated_source_button, fit_source_kind_state, fit_preview_frame_state],
             )
 
     return app
 
 
 app = build_app()
-

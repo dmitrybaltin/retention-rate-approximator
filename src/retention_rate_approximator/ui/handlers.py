@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import gradio as gr
+import pandas as pd
 
 from retention_rate_approximator.core.app_support import (
     build_session_download_path,
@@ -12,9 +13,23 @@ from retention_rate_approximator.core.app_support import (
     resolve_training_strategy,
 )
 from retention_rate_approximator.core.data import load_retention_csv
-from retention_rate_approximator.core.plotting import FitPlotData, build_prediction_frame, build_training_summary, plot_fit_results
+from retention_rate_approximator.core.plotting import (
+    FitPlotData,
+    YAxisMode,
+    build_prediction_frame,
+    build_training_summary,
+    plot_fit_results,
+    plot_generated_frame,
+    plot_prediction_chart,
+)
 from retention_rate_approximator.core.training import train_retention_model
-from retention_rate_approximator.ui.state import SOURCE_GENERATED, SOURCE_NONE, SOURCE_UPLOADED, fit_source_ui_updates
+from retention_rate_approximator.ui.state import (
+    SOURCE_GENERATED,
+    SOURCE_NONE,
+    SOURCE_UPLOADED,
+    build_preview_plot_update,
+    fit_source_ui_updates,
+)
 
 
 def use_generated_dataset_in_fit(generated_csv_path: str | None) -> tuple[str, str]:
@@ -34,8 +49,9 @@ def generate_demo_dataset(
     week_function_weights: str,
     daily_installs_mean: int,
     daily_installs_sigma: int,
-    session_id: str | None,
-) -> tuple[str, object, str, str, object, str]:
+    y_axis_mode: YAxisMode = 'zero',
+    session_id: str | None = None,
+) -> tuple[str, object, str, str, object, str, pd.DataFrame]:
     frame, figure, details, output_path, active_session_id = create_generated_frame(
         total_days,
         first_day_of_week,
@@ -48,14 +64,16 @@ def generate_demo_dataset(
         daily_installs_mean,
         daily_installs_sigma,
         session_id,
+        y_axis_mode,
     )
-    return str(output_path), figure, details, str(output_path), frame, active_session_id
+    return str(output_path), figure, details, str(output_path), frame, active_session_id, frame
 
 
 def request_generated_dataset_transfer(
     generated_csv_path: str | None,
     fit_source_kind: str,
-) -> tuple[object, object, object, str, object, object, object, object, str]:
+    y_axis_mode: YAxisMode = 'zero',
+) -> tuple[object, object, object, str, object, object, object, object, str, pd.DataFrame | None]:
     if generated_csv_path is None:
         raise gr.Error('Generate a demo dataset first.')
     if fit_source_kind != SOURCE_NONE:
@@ -70,12 +88,14 @@ def request_generated_dataset_transfer(
             gr.update(),
             gr.update(),
             fit_source_kind,
+            None,
         )
     dataset = load_retention_csv(generated_csv_path)
     status, preview_plot, preview_table, fit_button, csv_input, clear_button = fit_source_ui_updates(
         SOURCE_GENERATED,
         dataset.frame,
         generated_csv_path,
+        y_axis_mode,
     )
     gr.Info('Generated dataset added to Fit.')
     return (
@@ -88,10 +108,14 @@ def request_generated_dataset_transfer(
         csv_input,
         clear_button,
         SOURCE_GENERATED,
+        dataset.frame,
     )
 
 
-def confirm_generated_dataset_transfer(generated_csv_path: str | None) -> tuple[object, object, object, str, object, object, object, object, str]:
+def confirm_generated_dataset_transfer(
+    generated_csv_path: str | None,
+    y_axis_mode: YAxisMode = 'zero',
+) -> tuple[object, object, object, str, object, object, object, object, str, pd.DataFrame | None]:
     if generated_csv_path is None:
         raise gr.Error('Generate a demo dataset first.')
     dataset = load_retention_csv(generated_csv_path)
@@ -99,6 +123,7 @@ def confirm_generated_dataset_transfer(generated_csv_path: str | None) -> tuple[
         SOURCE_GENERATED,
         dataset.frame,
         generated_csv_path,
+        y_axis_mode,
     )
     gr.Info('Generated dataset replaced the current Fit input.')
     return (
@@ -111,22 +136,35 @@ def confirm_generated_dataset_transfer(generated_csv_path: str | None) -> tuple[
         csv_input,
         clear_button,
         SOURCE_GENERATED,
+        dataset.frame,
     )
 
 
-def on_csv_selected(csv_file: str | None) -> tuple[str, object, object, object, object, str]:
+def on_csv_selected(
+    csv_file: str | None,
+    y_axis_mode: YAxisMode = 'zero',
+) -> tuple[str, object, object, object, object, str, pd.DataFrame | None]:
     if csv_file is None:
-        status, preview_plot, preview_table, fit_button, _, clear_button = fit_source_ui_updates(SOURCE_NONE, None)
-        return status, preview_plot, preview_table, fit_button, clear_button, SOURCE_NONE
+        status, preview_plot, preview_table, fit_button, _, clear_button = fit_source_ui_updates(
+            SOURCE_NONE,
+            None,
+            y_axis_mode=y_axis_mode,
+        )
+        return status, preview_plot, preview_table, fit_button, clear_button, SOURCE_NONE, None
     dataset = load_retention_csv(csv_file)
     source_kind = SOURCE_GENERATED if Path(csv_file).name == 'demo_dataset.csv' else SOURCE_UPLOADED
-    status, preview_plot, preview_table, fit_button, _, clear_button = fit_source_ui_updates(source_kind, dataset.frame, csv_file)
-    return status, preview_plot, preview_table, fit_button, clear_button, source_kind
+    status, preview_plot, preview_table, fit_button, _, clear_button = fit_source_ui_updates(
+        source_kind,
+        dataset.frame,
+        csv_file,
+        y_axis_mode,
+    )
+    return status, preview_plot, preview_table, fit_button, clear_button, source_kind, dataset.frame
 
 
-def clear_generated_source() -> tuple[str, object, object, object, object, object, str]:
+def clear_generated_source() -> tuple[str, object, object, object, object, object, str, None]:
     status, preview_plot, preview_table, fit_button, csv_input, clear_button = fit_source_ui_updates(SOURCE_NONE, None)
-    return status, preview_plot, preview_table, fit_button, csv_input, clear_button, SOURCE_NONE
+    return status, preview_plot, preview_table, fit_button, csv_input, clear_button, SOURCE_NONE, None
 
 
 def fit_uploaded_dataset(
@@ -141,8 +179,9 @@ def fit_uploaded_dataset(
     week_function_weights: str,
     training_mode: str,
     exclude_patch_dates: bool,
-    session_id: str | None,
-) -> tuple[object, object, str, object, str, str]:
+    y_axis_mode: YAxisMode = 'zero',
+    session_id: str | None = None,
+) -> tuple[object, object, str, object, str, str, pd.DataFrame]:
     if csv_file is None:
         raise gr.Error('Upload a CSV file or send a generated dataset to the approximator first.')
 
@@ -171,10 +210,27 @@ def fit_uploaded_dataset(
             used_day_numbers=result.used_day_numbers,
             used_retention=result.used_retention,
             retention_mean=dataset.retention_mean,
-        )
+        ),
+        y_axis_mode,
     )
     frame = build_prediction_frame(dataset.day_numbers, dataset.retention, result.predicted, result.predicted_trend)
     summary = f'Source: {source_label}\n\n' + build_training_summary(result)
     output_path, active_session_id = build_session_download_path('fit_predictions.csv', session_id)
     frame.to_csv(output_path, index=False)
-    return figure, frame, summary, gr.update(value=str(output_path), interactive=True), source_kind, active_session_id
+    return figure, frame, summary, gr.update(value=str(output_path), interactive=True), source_kind, active_session_id, frame
+
+
+def rerender_preview_plot(preview_frame: pd.DataFrame | None, y_axis_mode: YAxisMode = 'zero') -> object:
+    return build_preview_plot_update(preview_frame, y_axis_mode)
+
+
+def rerender_fit_plot(prediction_frame: pd.DataFrame | None, y_axis_mode: YAxisMode = 'zero') -> object:
+    if prediction_frame is None or prediction_frame.empty:
+        return gr.update(value=None)
+    return gr.update(value=plot_prediction_chart(prediction_frame, y_axis_mode))
+
+
+def rerender_demo_plot(generated_frame: pd.DataFrame | None, y_axis_mode: YAxisMode = 'zero') -> object:
+    if generated_frame is None or generated_frame.empty:
+        return gr.update(value=None)
+    return gr.update(value=plot_generated_frame(generated_frame, y_axis_mode))

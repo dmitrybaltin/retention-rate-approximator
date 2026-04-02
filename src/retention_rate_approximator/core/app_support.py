@@ -4,11 +4,12 @@ from pathlib import Path
 from typing import Final
 from uuid import uuid4
 
+import pandas as pd
+
+from retention_rate_approximator.core.data import save_retention_csv
+from retention_rate_approximator.core.plotting import YAxisMode, plot_synthetic_dataset
 from retention_rate_approximator.core.synthetic import generate_retention_dataset
 from retention_rate_approximator.core.training import TrainingPhase
-from retention_rate_approximator.core.data import save_retention_csv
-from retention_rate_approximator.core.plotting import plot_synthetic_dataset
-import pandas as pd
 
 ARTIFACTS_DIR: Final[Path] = Path('.artifacts')
 ARTIFACTS_DIR.mkdir(exist_ok=True)
@@ -72,6 +73,7 @@ def create_generated_frame(
     daily_installs_mean: int,
     daily_installs_sigma: int,
     session_id: str | None,
+    y_axis_mode: YAxisMode,
 ) -> tuple[pd.DataFrame, object, str, str, str]:
     patch_values = parse_int_list(patches_dates)
     main_weight_values = parse_float_list(main_function_weights)
@@ -105,7 +107,7 @@ def create_generated_frame(
             'retention_mean': generated.retention_trend.detach().cpu().numpy(),
         }
     )
-    figure = plot_synthetic_dataset(generated)
+    figure = plot_synthetic_dataset(generated, y_axis_mode)
     details = (
         '### Demo dataset generated\n'
         f'- Days: {total_days}\n'
