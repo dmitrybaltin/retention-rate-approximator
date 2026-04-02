@@ -104,15 +104,15 @@ class LinearFractionalFunctionNew(nn.Module):
         self.w2 = nn.Parameter(torch.tensor([values[2]], dtype=torch.float32))
 
     def init_weights_from_train_data(self, x_train: Tensor, y_train: Tensor) -> None:
-        first_value = torch.max(y_train)
-        last_value = torch.min(y_train)
+        first_value = y_train[torch.argmin(x_train)]
+        last_value = y_train[torch.argmax(x_train)]
         w0 = max(float(first_value), 0.1)
-        w1 = max(float(first_value - last_value), 0.0)
-        w1 = min(w1, w0)
-        x_mean = torch.mean(x_train)
-        y_mean = torch.mean(y_train)
-        if float(x_mean) != 0.0:
-            w2 = float((w1 / (w0 - float(y_mean)) - 1) / x_mean)
+        w1 = max(min(float(last_value), w0), 0.0)
+        x_mean = float(torch.mean(x_train))
+        y_mean = float(torch.mean(y_train))
+        denominator = w1 - y_mean
+        if x_mean > 0.0 and abs(denominator) > 1e-6:
+            w2 = max((y_mean - w0) / (x_mean * denominator), 1e-4)
         else:
             w2 = 0.05
         self.reset_weights([w0, w1, w2])
