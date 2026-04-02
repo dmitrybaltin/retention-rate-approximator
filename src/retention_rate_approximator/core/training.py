@@ -99,19 +99,32 @@ def train_retention_model(
             chain_function.requires_grad_(phase.trend_trainable)
 
         for _ in range(phase.epochs):
-            def closure() -> Tensor:
-                optimizer.zero_grad()
-                predicted = model(used_day_numbers)
-                loss = (
-                    custom_mse_loss(predicted, used_retention, used_installs, model.regularize, regularizer_lambda)
-                    if use_custom_loss
-                    else torch.nn.functional.mse_loss(predicted, used_retention)
-                )
-                loss.backward()
-                return loss
+            if phase.optimizer_name == "LBFGS":
+                def closure() -> Tensor:
+                    optimizer.zero_grad()
+                    predicted = model(used_day_numbers)
+                    loss = (
+                        custom_mse_loss(predicted, used_retention, used_installs, model.regularize, regularizer_lambda)
+                        if use_custom_loss
+                        else torch.nn.functional.mse_loss(predicted, used_retention)
+                    )
+                    loss.backward()
+                    return loss.detach()
 
-            optimizer.step(closure)
-            loss_history.append(float(closure().item()))
+                step_loss = optimizer.step(closure)
+                loss_history.append(float(step_loss.item()))
+                continue
+
+            optimizer.zero_grad()
+            predicted = model(used_day_numbers)
+            loss = (
+                custom_mse_loss(predicted, used_retention, used_installs, model.regularize, regularizer_lambda)
+                if use_custom_loss
+                else torch.nn.functional.mse_loss(predicted, used_retention)
+            )
+            loss.backward()
+            optimizer.step()
+            loss_history.append(float(loss.detach().item()))
 
     model.eval()
     with torch.no_grad():
