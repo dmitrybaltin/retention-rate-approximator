@@ -2,4 +2,3 @@ numpy
 torch
 pandas
 matplotlib
-gradio==6.9.0
