@@ -12,7 +12,7 @@ from retention_rate_approximator.core.app_support import (
     parse_int_list,
     resolve_training_strategy,
 )
-from retention_rate_approximator.core.confidence import ConfidenceBandMode, build_segment_confidence_sigma
+from retention_rate_approximator.core.confidence import ConfidenceBandMode, ConfidenceTargetMode, build_segment_confidence_sigma
 from retention_rate_approximator.core.data import load_retention_csv
 from retention_rate_approximator.core.plotting import (
     FitPlotData,
@@ -182,6 +182,7 @@ def fit_uploaded_dataset(
     exclude_patch_dates: bool,
     y_axis_mode: YAxisMode = 'zero',
     confidence_band_mode: ConfidenceBandMode = '3sigma',
+    confidence_target_mode: ConfidenceTargetMode = 'predicted',
     session_id: str | None = None,
 ) -> tuple[object, object, str, object, str, str, pd.DataFrame]:
     if csv_file is None:
@@ -205,28 +206,18 @@ def fit_uploaded_dataset(
         week_function_initial_weights=parse_float_list(week_function_weights) if week_function_weights.strip() else None,
         training_strategy=resolve_training_strategy(training_mode),
     )
-    figure = plot_fit_results(
-        FitPlotData(
-            day_numbers=dataset.day_numbers,
-            retention=dataset.retention,
-            predicted=result.predicted,
-            predicted_trend=result.predicted_trend,
-            used_day_numbers=result.used_day_numbers,
-            used_retention=result.used_retention,
-            retention_mean=dataset.retention_mean,
-        ),
-        y_axis_mode,
-    )
-    frame = build_prediction_frame(dataset.day_numbers, dataset.retention, result.predicted, result.predicted_trend)
+    frame = build_prediction_frame(dataset.day_numbers, dataset.retention, result.predicted, result.predicted_trend, dataset.retention_mean)
     frame['installs'] = dataset.installs.detach().cpu().numpy()
+    clipped_retention = frame['retention'].clip(1e-6, 1 - 1e-6)
+    frame['observation_sigma'] = ((clipped_retention * (1.0 - clipped_retention)) / frame['installs'].clip(lower=1.0)).pow(0.5)
     frame['confidence_sigma'] = build_segment_confidence_sigma(
         dataset.day_numbers,
+        dataset.retention,
         dataset.installs,
-        result.predicted,
         normalized_patch_dates,
         result.used_day_numbers,
     )
-    figure = plot_prediction_chart(frame, y_axis_mode, confidence_band_mode)
+    figure = plot_prediction_chart(frame, y_axis_mode, confidence_band_mode, confidence_target_mode)
     summary = f'Source: {source_label}\n\n' + build_training_summary(result)
     output_path, active_session_id = build_session_download_path('fit_predictions.csv', session_id)
     frame.to_csv(output_path, index=False)
@@ -241,10 +232,11 @@ def rerender_fit_plot(
     prediction_frame: pd.DataFrame | None,
     y_axis_mode: YAxisMode = 'zero',
     confidence_band_mode: ConfidenceBandMode = '3sigma',
+    confidence_target_mode: ConfidenceTargetMode = 'predicted',
 ) -> object:
     if prediction_frame is None or prediction_frame.empty:
         return gr.update(value=None)
-    return gr.update(value=plot_prediction_chart(prediction_frame, y_axis_mode, confidence_band_mode))
+    return gr.update(value=plot_prediction_chart(prediction_frame, y_axis_mode, confidence_band_mode, confidence_target_mode))
 
 
 def rerender_demo_plot(generated_frame: pd.DataFrame | None, y_axis_mode: YAxisMode = 'zero') -> object:

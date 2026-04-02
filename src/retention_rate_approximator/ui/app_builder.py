@@ -77,6 +77,10 @@ CUSTOM_CSS: Final[str] = """
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  flex-wrap: nowrap;
+}
+.chart-controls .gr-block {
+  margin: 0;
 }
 .axis-toggle {
   min-width: 210px;
@@ -106,8 +110,12 @@ CUSTOM_CSS: Final[str] = """
   align-items: center;
 }
 .band-toggle {
-  min-width: 90px;
-  max-width: 90px;
+  min-width: 120px;
+  max-width: 120px;
+}
+.target-toggle {
+  min-width: 135px;
+  max-width: 135px;
 }
 """
 
@@ -136,7 +144,8 @@ def build_app() -> gr.Blocks:
     chain_function_choices = [spec.name for spec in ApproximatorsFactory.chain_functions]
     connector_choices = [connector[0] for connector in ApproximatorsFactory.connectors]
     y_axis_mode_choices = [('Y from 0', 'zero'), ('Auto-fit Y', 'auto')]
-    confidence_band_choices = [('Off', 'off'), ('2?', '2sigma'), ('3?', '3sigma')]
+    confidence_band_choices = [('Off', 'off'), ('1 sigma (68%)', '1sigma'), ('2 sigma (95%)', '2sigma'), ('3 sigma (99.7%)', '3sigma')]
+    confidence_target_choices = [('Around trend', 'trend'), ('Around full curve', 'predicted')]
     blocks_kwargs: dict[str, object] = {'title': 'Retention Rate Approximator'}
     if BLOCKS_SUPPORTS_CSS:
         blocks_kwargs['css'] = CUSTOM_CSS
@@ -211,6 +220,13 @@ def build_app() -> gr.Blocks:
                                     show_label=False,
                                     elem_classes='band-toggle',
                                 )
+                                fit_confidence_target_mode = gr.Dropdown(
+                                    choices=confidence_target_choices,
+                                    value='predicted',
+                                    container=False,
+                                    show_label=False,
+                                    elem_classes='target-toggle',
+                                )
                                 fit_result_y_axis_mode = gr.Radio(
                                     choices=y_axis_mode_choices,
                                     value='zero',
@@ -246,13 +262,19 @@ def build_app() -> gr.Blocks:
 
             fit_result_y_axis_mode.change(
                 fn=rerender_fit_plot,
-                inputs=[fit_result_frame_state, fit_result_y_axis_mode, fit_confidence_band_mode],
+                inputs=[fit_result_frame_state, fit_result_y_axis_mode, fit_confidence_band_mode, fit_confidence_target_mode],
                 outputs=[fit_plot],
             )
 
             fit_confidence_band_mode.change(
                 fn=rerender_fit_plot,
-                inputs=[fit_result_frame_state, fit_result_y_axis_mode, fit_confidence_band_mode],
+                inputs=[fit_result_frame_state, fit_result_y_axis_mode, fit_confidence_band_mode, fit_confidence_target_mode],
+                outputs=[fit_plot],
+            )
+
+            fit_confidence_target_mode.change(
+                fn=rerender_fit_plot,
+                inputs=[fit_result_frame_state, fit_result_y_axis_mode, fit_confidence_band_mode, fit_confidence_target_mode],
                 outputs=[fit_plot],
             )
 
@@ -272,6 +294,7 @@ def build_app() -> gr.Blocks:
                     exclude_patch_dates,
                     fit_result_y_axis_mode,
                     fit_confidence_band_mode,
+                    fit_confidence_target_mode,
                     session_id_state,
                 ],
                 outputs=[fit_plot, fit_table, fit_summary, predictions_download, fit_source_kind_state, session_id_state, fit_result_frame_state],

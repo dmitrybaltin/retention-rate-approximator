@@ -9,7 +9,7 @@ import pandas as pd
 from matplotlib.figure import Figure
 from torch import Tensor
 
-from retention_rate_approximator.core.confidence import ConfidenceBandMode, band_multiplier
+from retention_rate_approximator.core.confidence import ConfidenceBandMode, ConfidenceTargetMode, band_multiplier
 from retention_rate_approximator.core.synthetic import GeneratedRetentionDataset
 from retention_rate_approximator.core.training import TrainingResult
 
@@ -123,6 +123,7 @@ def plot_prediction_chart(
     frame: pd.DataFrame,
     y_axis_mode: YAxisMode = 'zero',
     confidence_band_mode: ConfidenceBandMode = 'off',
+    confidence_target_mode: ConfidenceTargetMode = 'predicted',
 ) -> Figure:
     figure, axis = plt.subplots(figsize=(12, 5))
     x_values = frame['day_number'].to_numpy()
@@ -132,14 +133,30 @@ def plot_prediction_chart(
     axis.plot(x_values, retention, color='royalblue', label='Source data')
     multiplier = band_multiplier(confidence_band_mode)
     series = [retention, predicted_retention, predicted_trend]
+    if multiplier > 0.0 and 'observation_sigma' in frame.columns:
+        observation_sigma = frame['observation_sigma'].to_numpy()
+        observed_lower = np.clip(retention - multiplier * observation_sigma, 0.0, 1.0)
+        observed_upper = np.clip(retention + multiplier * observation_sigma, 0.0, 1.0)
+        axis.fill_between(x_values, observed_lower, observed_upper, color='royalblue', alpha=0.12, label=f'{int(multiplier)} sigma observation band')
+        series.extend([observed_lower, observed_upper])
+    if confidence_target_mode == 'trend':
+        band_center = predicted_trend
+        band_label_target = 'trend'
+    else:
+        band_center = predicted_retention
+        band_label_target = 'full curve'
     if multiplier > 0.0 and 'confidence_sigma' in frame.columns:
         confidence_sigma = frame['confidence_sigma'].to_numpy()
-        lower = np.clip(predicted_retention - multiplier * confidence_sigma, 0.0, 1.0)
-        upper = np.clip(predicted_retention + multiplier * confidence_sigma, 0.0, 1.0)
-        axis.fill_between(x_values, lower, upper, color='gray', alpha=0.22, label=f'{int(multiplier)}? confidence band')
+        lower = np.clip(band_center - multiplier * confidence_sigma, 0.0, 1.0)
+        upper = np.clip(band_center + multiplier * confidence_sigma, 0.0, 1.0)
+        axis.fill_between(x_values, lower, upper, color='gray', alpha=0.22, label=f'{int(multiplier)} sigma band around {band_label_target}')
         series.extend([lower, upper])
     axis.plot(x_values, predicted_retention, color='darkmagenta', linewidth=2.5, label='Predicted data')
     axis.plot(x_values, predicted_trend, color='firebrick', linewidth=2.0, label='Predicted trend')
+    if 'retention_mean' in frame.columns:
+        reference_trend = frame['retention_mean'].to_numpy()
+        axis.plot(x_values, reference_trend, color='darkgreen', linestyle='--', label='Reference trend')
+        series.append(reference_trend)
     axis.set_xlabel('Day number')
     axis.set_ylabel('Retention')
     _apply_y_axis_mode(axis, series, y_axis_mode)
@@ -177,15 +194,17 @@ def build_prediction_frame(
     observed_retention: Tensor,
     predicted_retention: Tensor,
     predicted_trend: Tensor,
+    reference_trend: Tensor | None = None,
 ) -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            'day_number': day_numbers.detach().cpu().numpy(),
-            'retention': observed_retention.detach().cpu().numpy(),
-            'predicted_retention': predicted_retention.detach().cpu().numpy(),
-            'predicted_trend': predicted_trend.detach().cpu().numpy(),
-        }
-    )
+    data = {
+        'day_number': day_numbers.detach().cpu().numpy(),
+        'retention': observed_retention.detach().cpu().numpy(),
+        'predicted_retention': predicted_retention.detach().cpu().numpy(),
+        'predicted_trend': predicted_trend.detach().cpu().numpy(),
+    }
+    if reference_trend is not None:
+        data['retention_mean'] = reference_trend.detach().cpu().numpy()
+    return pd.DataFrame(data)
 
 
 def build_training_summary(result: TrainingResult) -> str:
