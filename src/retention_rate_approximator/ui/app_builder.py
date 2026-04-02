@@ -73,6 +73,11 @@ CUSTOM_CSS: Final[str] = """
 .axis-toolbar .gr-markdown {
   margin: 0;
 }
+.chart-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
 .axis-toggle {
   min-width: 210px;
   max-width: 210px;
@@ -99,6 +104,10 @@ CUSTOM_CSS: Final[str] = """
 }
 .axis-toggle label:has(input[type='radio']) {
   align-items: center;
+}
+.band-toggle {
+  min-width: 90px;
+  max-width: 90px;
 }
 """
 
@@ -127,6 +136,7 @@ def build_app() -> gr.Blocks:
     chain_function_choices = [spec.name for spec in ApproximatorsFactory.chain_functions]
     connector_choices = [connector[0] for connector in ApproximatorsFactory.connectors]
     y_axis_mode_choices = [('Y from 0', 'zero'), ('Auto-fit Y', 'auto')]
+    confidence_band_choices = [('Off', 'off'), ('2?', '2sigma'), ('3?', '3sigma')]
     blocks_kwargs: dict[str, object] = {'title': 'Retention Rate Approximator'}
     if BLOCKS_SUPPORTS_CSS:
         blocks_kwargs['css'] = CUSTOM_CSS
@@ -193,15 +203,23 @@ def build_app() -> gr.Blocks:
                     with gr.Tab('Chart'):
                         with gr.Row(elem_classes='axis-toolbar'):
                             gr.Markdown('##### Result chart')
-                            fit_result_y_axis_mode = gr.Radio(
-                                choices=y_axis_mode_choices,
-                                value='zero',
-                                container=False,
-                                show_label=False,
-                                elem_classes='axis-toggle',
-                                interactive=True,
-                                type='value',
-                            )
+                            with gr.Row(elem_classes='chart-controls'):
+                                fit_confidence_band_mode = gr.Dropdown(
+                                    choices=confidence_band_choices,
+                                    value='3sigma',
+                                    container=False,
+                                    show_label=False,
+                                    elem_classes='band-toggle',
+                                )
+                                fit_result_y_axis_mode = gr.Radio(
+                                    choices=y_axis_mode_choices,
+                                    value='zero',
+                                    container=False,
+                                    show_label=False,
+                                    elem_classes='axis-toggle',
+                                    interactive=True,
+                                    type='value',
+                                )
                         fit_plot = gr.Plot()
                     with gr.Tab('Table'):
                         fit_table = gr.Dataframe(interactive=False)
@@ -228,7 +246,13 @@ def build_app() -> gr.Blocks:
 
             fit_result_y_axis_mode.change(
                 fn=rerender_fit_plot,
-                inputs=[fit_result_frame_state, fit_result_y_axis_mode],
+                inputs=[fit_result_frame_state, fit_result_y_axis_mode, fit_confidence_band_mode],
+                outputs=[fit_plot],
+            )
+
+            fit_confidence_band_mode.change(
+                fn=rerender_fit_plot,
+                inputs=[fit_result_frame_state, fit_result_y_axis_mode, fit_confidence_band_mode],
                 outputs=[fit_plot],
             )
 
@@ -247,6 +271,7 @@ def build_app() -> gr.Blocks:
                     training_mode,
                     exclude_patch_dates,
                     fit_result_y_axis_mode,
+                    fit_confidence_band_mode,
                     session_id_state,
                 ],
                 outputs=[fit_plot, fit_table, fit_summary, predictions_download, fit_source_kind_state, session_id_state, fit_result_frame_state],

@@ -9,6 +9,7 @@ import pandas as pd
 from matplotlib.figure import Figure
 from torch import Tensor
 
+from retention_rate_approximator.core.confidence import ConfidenceBandMode, band_multiplier
 from retention_rate_approximator.core.synthetic import GeneratedRetentionDataset
 from retention_rate_approximator.core.training import TrainingResult
 
@@ -118,18 +119,30 @@ def plot_generated_frame(frame: pd.DataFrame, y_axis_mode: YAxisMode = 'zero') -
     return figure
 
 
-def plot_prediction_chart(frame: pd.DataFrame, y_axis_mode: YAxisMode = 'zero') -> Figure:
+def plot_prediction_chart(
+    frame: pd.DataFrame,
+    y_axis_mode: YAxisMode = 'zero',
+    confidence_band_mode: ConfidenceBandMode = 'off',
+) -> Figure:
     figure, axis = plt.subplots(figsize=(12, 5))
     x_values = frame['day_number'].to_numpy()
     retention = frame['retention'].to_numpy()
     predicted_retention = frame['predicted_retention'].to_numpy()
     predicted_trend = frame['predicted_trend'].to_numpy()
     axis.plot(x_values, retention, color='royalblue', label='Source data')
+    multiplier = band_multiplier(confidence_band_mode)
+    series = [retention, predicted_retention, predicted_trend]
+    if multiplier > 0.0 and 'confidence_sigma' in frame.columns:
+        confidence_sigma = frame['confidence_sigma'].to_numpy()
+        lower = np.clip(predicted_retention - multiplier * confidence_sigma, 0.0, 1.0)
+        upper = np.clip(predicted_retention + multiplier * confidence_sigma, 0.0, 1.0)
+        axis.fill_between(x_values, lower, upper, color='gray', alpha=0.22, label=f'{int(multiplier)}? confidence band')
+        series.extend([lower, upper])
     axis.plot(x_values, predicted_retention, color='darkmagenta', linewidth=2.5, label='Predicted data')
     axis.plot(x_values, predicted_trend, color='firebrick', linewidth=2.0, label='Predicted trend')
     axis.set_xlabel('Day number')
     axis.set_ylabel('Retention')
-    _apply_y_axis_mode(axis, [retention, predicted_retention, predicted_trend], y_axis_mode)
+    _apply_y_axis_mode(axis, series, y_axis_mode)
     axis.grid(alpha=0.25)
     axis.legend(loc='best')
     figure.tight_layout()
